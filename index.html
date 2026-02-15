@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iCal Link Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style_reset.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+  <main>
+    <section class="section">
+      <div class="container">
+        <label class="select-label" for="groupSelect">League Group</label>
+        <select class="select" id="groupSelect"></select>
+
+        <label class="select-label" for="leagueSelect">League</label>
+        <select class="select" id="leagueSelect" disabled></select>
+
+        <label class="select-label" for="teamSelect">Team</label>
+        <select class="select" id="teamSelect" disabled></select>
+
+        <a id="calendarUrl" class="copy-link" style="display:none;">Copy Calendar Link</a>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+
+</html>

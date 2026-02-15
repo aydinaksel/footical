@@ -1,0 +1,63 @@
+@media (min-width: 768px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 18px;
+  }
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #333;
+  background-color: #fff;
+  background: #f4f4f4;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  width: 28rem;
+  padding: 1rem;
+}
+
+a.copy-link {
+  display: inline-block;
+  padding: 0.5rem;
+  background: blueviolet;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.copy-link:active {
+  opacity: 0.8;
+}
+
+.select-label {
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.select {
+  margin-bottom: 2rem;
+  padding: 0.5rem;
+  text-align: center;
+}
