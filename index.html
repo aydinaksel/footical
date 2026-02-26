@@ -4,26 +4,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>iCal Link Generator</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style_reset.css">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="css/pico.min.css">
 </head>
 
 <body>
   <main>
     <section class="section">
       <div class="container">
-        <label class="select-label" for="groupSelect">League Group</label>
-        <select class="select" id="groupSelect"></select>
+        <label for="groupSelect">League Group</label>
+        <select id="groupSelect"></select>
 
-        <label class="select-label" for="leagueSelect">League</label>
-        <select class="select" id="leagueSelect" disabled></select>
+        <label for="leagueSelect">League</label>
+        <select id="leagueSelect" disabled></select>
 
-        <label class="select-label" for="teamSelect">Team</label>
-        <select class="select" id="teamSelect" disabled></select>
+        <label for="teamSelect">Team</label>
+        <select id="teamSelect" disabled></select>
 
-        <a id="calendarUrl" class="copy-link" style="display:none;">Copy Calendar Link</a>
+        <a id="calendarUrl" role="button" style="display:none;">Copy Calendar Link</a>
       </div>
 
     </section>
