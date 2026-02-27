@@ -2,3 +2,5 @@ venv
 .env
 docs/*
 !docs/.gitkeep
+target/
+dist/
