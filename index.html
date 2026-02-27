@@ -1,34 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>iCal Link Generator</title>
-  <link rel="stylesheet" href="css/pico.min.css">
+  <link data-trunk rel="tailwind-css" href="input.css"/>
+  <link data-trunk rel="copy-file" href="static/mundial_league_groups.json"/>
+  <link data-trunk rel="copy-file" href="static/mundial_leagues.json"/>
+  <link data-trunk rel="copy-file" href="static/mundial_teams.json"/>
 </head>
-
 <body>
-  <main>
-    <section class="section">
-      <div class="container">
-        <label for="groupSelect">League Group</label>
-        <select id="groupSelect"></select>
-
-        <label for="leagueSelect">League</label>
-        <select id="leagueSelect" disabled></select>
-
-        <label for="teamSelect">Team</label>
-        <select id="teamSelect" disabled></select>
-
-        <a id="calendarUrl" role="button" style="display:none;">Copy Calendar Link</a>
-      </div>
-
-    </section>
-  </main>
-
-  <script src="/js/app.js"></script>
 </body>
-
 </html>
