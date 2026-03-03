@@ -1,0 +1,11 @@
+[package]
+name = "footical-generator"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "footical-generator"
+path = "src/main.rs"
+
+[dependencies]
+# to be added: tokio, sqlx/tokio-postgres, aws-sdk-s3
