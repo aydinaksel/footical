@@ -24,7 +24,7 @@ jobs:
             | tar xz -C /usr/local/bin trunk
 
       - name: Build
-        run: trunk build --release
+        run: trunk build --release --manifest-path app/Cargo.toml
 
       - name: Create Cloudflare Pages project
         uses: cloudflare/wrangler-action@v3
