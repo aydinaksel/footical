@@ -1,2 +1,5 @@
 [build]
 package = "footical-app"
+
+[tools]
+tailwindcss = "4.2.1"
