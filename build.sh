@@ -17,4 +17,4 @@ curl -sLo "$HOME/.cargo/bin/tailwindcss" \
 chmod +x "$HOME/.cargo/bin/tailwindcss"
 
 # Build the release WASM bundle
-trunk build --release --manifest-path app/Cargo.toml
+trunk build --release
