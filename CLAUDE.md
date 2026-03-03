@@ -42,25 +42,20 @@ Use the `aws-sdk-s3` crate in the generator binary, pointed at that endpoint.
 Create a dedicated R2 API token scoped to the `footical-data` bucket only (not the full
 Cloudflare API token). Store credentials on Zeus, e.g. `/etc/footical/env`.
 
-### Workspace Structure
+### Workspace Structure (done)
 
-Convert to a Cargo workspace so the Leptos WASM app and the native generator binary are
-separate crates:
+The repo is a Cargo workspace with two crates:
 
-```
-footical/
-  Cargo.toml          ← workspace root: members = ["app", "generator"]
-  app/                ← current Leptos CSR binary (move src/ here)
-    Cargo.toml
-    src/
-  generator/          ← native binary (tokio, sqlx or tokio-postgres, aws-sdk-s3)
-    Cargo.toml
-    src/main.rs
-  static/             ← JSON written here (or fetched from data.footical.club at runtime)
-  index.html          ← update data-trunk path to app/
-```
+- `app/` — Leptos CSR WASM binary (`footical-app`)
+- `generator/` — native binary skeleton (`footical-generator`), dependencies TBD
 
-### Workflows to Clean Up
+### Remaining Steps
 
-- Delete `.github/workflows/generate-ical-feed.yml` — replaced by Zeus cron
-- `.github/workflows/send-availability-checker.yml` — review whether still needed
+1. Implement `generator/` — add `tokio`, `sqlx`/`tokio-postgres`, `aws-sdk-s3` dependencies
+   and write the logic to query Postgres, generate JSON + iCal files, and upload to R2.
+2. Store R2 credentials on Zeus at `/etc/footical/env`.
+3. Set up R2 bucket `footical-data`, attach custom domain `data.footical.club`, configure
+   CORS to allow GET from `https://footical.club`.
+4. Update the Leptos app to fetch JSON from `https://data.footical.club/` instead of
+   relative paths.
+5. Create a systemd timer on Zeus to run the generator daily.
