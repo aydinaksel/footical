@@ -20,7 +20,7 @@ jobs:
 
       - name: Install trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.9/trunk-x86_64-unknown-linux-gnu.tar.gz \
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz \
             | tar xz -C /usr/local/bin trunk
 
       - name: Build
