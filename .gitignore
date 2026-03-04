@@ -6,3 +6,4 @@ target/
 dist/
 static/*.json
 static/*.ics
+generator/static/*.ics
