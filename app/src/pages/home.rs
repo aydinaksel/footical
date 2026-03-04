@@ -25,7 +25,7 @@ struct Team {
 }
 
 async fn fetch_leagues() -> Vec<League> {
-    Request::get("/leagues.json")
+    Request::get("https://data.footical.club/leagues.json")
         .send()
         .await
         .unwrap()
@@ -35,7 +35,7 @@ async fn fetch_leagues() -> Vec<League> {
 }
 
 async fn fetch_divisions() -> Vec<Division> {
-    Request::get("/divisions.json")
+    Request::get("https://data.footical.club/divisions.json")
         .send()
         .await
         .unwrap()
@@ -45,7 +45,7 @@ async fn fetch_divisions() -> Vec<Division> {
 }
 
 async fn fetch_teams() -> Vec<Team> {
-    Request::get("/teams.json")
+    Request::get("https://data.footical.club/teams.json")
         .send()
         .await
         .unwrap()
@@ -107,10 +107,7 @@ pub fn Home() -> impl IntoView {
 
     let calendar_url = Memo::new(move |_| -> Option<String> {
         selected_team_id.get().map(|team_id| {
-            format!(
-                "https://d39amfcda6iyyg.cloudfront.net/football_mundial/{}.ics",
-                team_id
-            )
+            format!("https://data.footical.club/{}.ics", team_id)
         })
     });
 
