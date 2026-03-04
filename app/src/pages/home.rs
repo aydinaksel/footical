@@ -1,3 +1,4 @@
+use crate::clipboard::copy_to_clipboard;
 use gloo_net::http::Request;
 use gloo_timers::callback::Timeout;
 use leptos::prelude::*;
@@ -106,9 +107,9 @@ pub fn Home() -> impl IntoView {
     });
 
     let calendar_url = Memo::new(move |_| -> Option<String> {
-        selected_team_id.get().map(|team_id| {
-            format!("https://data.footical.club/{}.ics", team_id)
-        })
+        selected_team_id
+            .get()
+            .map(|team_id| format!("https://calendar.footical.club/{}.ics", team_id))
     });
 
     let on_league_change = move |change_event: web_sys::Event| {
@@ -132,14 +133,13 @@ pub fn Home() -> impl IntoView {
     let on_copy_click = move |_: web_sys::MouseEvent| {
         if let Some(url) = calendar_url.get() {
             spawn_local(async move {
-                let window = web_sys::window().expect("no window");
-                let promise = window.navigator().clipboard().write_text(&url);
-                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                is_copied.set(true);
-                let reset_timeout = Timeout::new(1500, move || {
-                    is_copied.set(false);
-                });
-                reset_timeout.forget();
+                if copy_to_clipboard(&url).await {
+                    is_copied.set(true);
+                    let reset_timeout = Timeout::new(1500, move || {
+                        is_copied.set(false);
+                    });
+                    reset_timeout.forget();
+                }
             });
         }
     };
@@ -217,19 +217,10 @@ pub fn Home() -> impl IntoView {
 
                     <Show when=move || selected_team.get().is_some()>
                         <button
-                            class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-150"
+                            class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-150 cursor-pointer"
                             on:click=on_copy_click
                         >
-                            {move || {
-                                if is_copied.get() {
-                                    "Copied!".to_string()
-                                } else {
-                                    format!(
-                                        "Copy {} Calendar Link",
-                                        selected_team.get().map(|team| team.name).unwrap_or_default()
-                                    )
-                                }
-                            }}
+                            {move || if is_copied.get() { "Copied!" } else { "Copy Calendar Link" }}
                         </button>
                     </Show>
                 </div>

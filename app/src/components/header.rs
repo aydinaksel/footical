@@ -8,17 +8,33 @@ pub fn Header() -> impl IntoView {
 
     let home_class = move || {
         if location.pathname.get() == "/" {
-            "font-medium text-blue-600"
+            "font-medium text-blue-600 cursor-pointer"
         } else {
-            "font-medium text-gray-500 hover:text-gray-900"
+            "font-medium text-gray-500 hover:text-gray-900 cursor-pointer"
         }
     };
 
     let calendar_class = move || {
         if location.pathname.get() == "/calendar" {
-            "font-medium text-blue-600"
+            "font-medium text-blue-600 cursor-pointer"
         } else {
-            "font-medium text-gray-500 hover:text-gray-900"
+            "font-medium text-gray-500 hover:text-gray-900 cursor-pointer"
+        }
+    };
+
+    let fixtures_class = move || {
+        if location.pathname.get() == "/fixtures" {
+            "font-medium text-blue-600 cursor-pointer"
+        } else {
+            "font-medium text-gray-500 hover:text-gray-900 cursor-pointer"
+        }
+    };
+
+    let subscribe_class = move || {
+        if location.pathname.get() == "/subscribe" {
+            "font-medium text-blue-600 cursor-pointer"
+        } else {
+            "font-medium text-gray-500 hover:text-gray-900 cursor-pointer"
         }
     };
 
@@ -27,6 +43,8 @@ pub fn Header() -> impl IntoView {
             <nav class="max-w-md mx-auto px-4 py-3 flex gap-6">
                 <A href="/"><span class=home_class>"Home"</span></A>
                 <A href="/calendar"><span class=calendar_class>"Calendar"</span></A>
+                <A href="/fixtures"><span class=fixtures_class>"Fixtures"</span></A>
+                <A href="/subscribe"><span class=subscribe_class>"Subscribe"</span></A>
             </nav>
         </header>
     }

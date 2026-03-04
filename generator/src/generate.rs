@@ -23,6 +23,17 @@ struct TeamJson {
     name: String,
 }
 
+#[derive(Serialize)]
+struct FixtureJson {
+    fixture_id: i32,
+    home_team_id: i32,
+    away_team_id: i32,
+    home_team_name: String,
+    away_team_name: String,
+    scheduled_at: String,
+    status: String,
+}
+
 pub fn write_all(
     output_directory: &Path,
     leagues: &[LeagueRow],
@@ -35,6 +46,7 @@ pub fn write_all(
     write_leagues(output_directory, leagues)?;
     write_divisions(output_directory, divisions)?;
     write_teams(output_directory, teams)?;
+    write_fixtures(output_directory, fixtures)?;
     write_icals(output_directory, teams, fixtures)?;
 
     Ok(())
@@ -70,6 +82,22 @@ fn write_teams(output_directory: &Path, teams: &[TeamRow]) -> anyhow::Result<()>
         })
         .collect();
     write_json(output_directory.join("teams.json"), &json)
+}
+
+fn write_fixtures(output_directory: &Path, fixtures: &[FixtureRow]) -> anyhow::Result<()> {
+    let json: Vec<FixtureJson> = fixtures
+        .iter()
+        .map(|fixture| FixtureJson {
+            fixture_id: fixture.fixture_id,
+            home_team_id: fixture.home_team_id,
+            away_team_id: fixture.away_team_id,
+            home_team_name: fixture.home_team_name.clone(),
+            away_team_name: fixture.away_team_name.clone(),
+            scheduled_at: fixture.scheduled_at.format("%Y-%m-%dT%H:%M:%S").to_string(),
+            status: fixture.status.clone(),
+        })
+        .collect();
+    write_json(output_directory.join("fixtures.json"), &json)
 }
 
 fn write_json<T: Serialize>(path: std::path::PathBuf, value: &T) -> anyhow::Result<()> {

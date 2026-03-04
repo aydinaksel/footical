@@ -1,3 +1,4 @@
+mod clipboard;
 mod components;
 mod pages;
 
@@ -7,9 +8,12 @@ use leptos_router::path;
 
 use components::header::Header;
 use pages::calendar::CalendarPage;
+use pages::fixtures::FixturesPage;
 use pages::home::Home;
+use pages::subscribe::SubscribePage;
 
 fn main() {
+    console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(App);
 }
 
@@ -22,6 +26,8 @@ fn App() -> impl IntoView {
                 <Routes fallback=|| "Page not found">
                     <Route path=path!("/") view=Home />
                     <Route path=path!("/calendar") view=CalendarPage />
+                    <Route path=path!("/fixtures") view=FixturesPage />
+                    <Route path=path!("/subscribe") view=SubscribePage />
                 </Routes>
             </div>
         </Router>

@@ -5,7 +5,7 @@ use std::path::Path;
 pub async fn upload_all(r2: &R2Config, output_directory: &Path) -> anyhow::Result<()> {
     let client = build_client(r2);
 
-    for filename in ["leagues.json", "divisions.json", "teams.json"] {
+    for filename in ["leagues.json", "divisions.json", "teams.json", "fixtures.json"] {
         let path = output_directory.join(filename);
         upload_file(&client, &r2.bucket, &path, filename, "application/json").await?;
         println!("  uploaded {}", filename);
