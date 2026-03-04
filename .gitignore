@@ -4,3 +4,5 @@ docs/*
 !docs/.gitkeep
 target/
 dist/
+static/*.json
+static/*.ics
