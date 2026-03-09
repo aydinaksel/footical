@@ -7,6 +7,9 @@ edition = "2021"
 name = "footical-app"
 path = "src/main.rs"
 
+[features]
+calendar = []
+
 [dependencies]
 leptos = { version = "0.7", features = ["csr"] }
 leptos_router = { version = "0.7" }

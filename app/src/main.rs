@@ -10,10 +10,8 @@ use leptos_router::path;
 use wasm_bindgen_futures::spawn_local;
 
 use components::header::Header;
-use pages::calendar::CalendarPage;
 use pages::fixtures::FixturesPage;
 use pages::home::Home;
-use pages::subscribe::SubscribePage;
 use types::{Division, League, Team, read_tracked_team_id};
 
 fn main() {
@@ -72,9 +70,7 @@ fn App() -> impl IntoView {
                 <Header />
                 <Routes fallback=|| "Page not found">
                     <Route path=path!("/") view=Home />
-                    <Route path=path!("/calendar") view=CalendarPage />
                     <Route path=path!("/fixtures") view=FixturesPage />
-                    <Route path=path!("/subscribe") view=SubscribePage />
                 </Routes>
             </div>
         </Router>
