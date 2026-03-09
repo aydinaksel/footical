@@ -148,7 +148,7 @@ fn build_ical(
 
     for fixture in fixtures {
         let start = fixture.scheduled_at.format("%Y%m%dT%H%M%S").to_string();
-        let end = (fixture.scheduled_at + chrono::Duration::minutes(90))
+        let end = (fixture.scheduled_at + chrono::Duration::minutes(35))
             .format("%Y%m%dT%H%M%S")
             .to_string();
         let ical_status = match fixture.status.as_str() {
@@ -164,14 +164,12 @@ fn build_ical(
         push_folded(&mut output, &format!("DTSTAMP:{}", generation_timestamp));
         push_folded(&mut output, &format!("DTSTART:{}", start));
         push_folded(&mut output, &format!("DTEND:{}", end));
-        push_folded(
-            &mut output,
-            &format!(
-                "SUMMARY:{} vs {}",
-                escape_ical_text(&fixture.home_team_name),
-                escape_ical_text(&fixture.away_team_name),
-            ),
-        );
+        let opponent_name = if fixture.home_team_id == team_id {
+            escape_ical_text(&fixture.away_team_name)
+        } else {
+            escape_ical_text(&fixture.home_team_name)
+        };
+        push_folded(&mut output, &format!("SUMMARY:Versus {}", opponent_name));
         if let Some(address) = &fixture.venue_address {
             push_folded(&mut output, &format!("LOCATION:{}", escape_ical_text(address)));
         } else if let Some(name) = &fixture.venue_name {
