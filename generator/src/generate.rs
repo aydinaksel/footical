@@ -145,6 +145,23 @@ fn build_ical(
     output.push_str("CALSCALE:GREGORIAN\r\n");
     output.push_str("METHOD:PUBLISH\r\n");
     push_folded(&mut output, &format!("X-WR-CALNAME:{} Fixtures", team_name));
+    output.push_str("BEGIN:VTIMEZONE\r\n");
+    output.push_str("TZID:Europe/London\r\n");
+    output.push_str("BEGIN:STANDARD\r\n");
+    output.push_str("TZOFFSETFROM:+0100\r\n");
+    output.push_str("TZOFFSETTO:+0000\r\n");
+    output.push_str("TZNAME:GMT\r\n");
+    output.push_str("DTSTART:19701025T020000\r\n");
+    output.push_str("RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\n");
+    output.push_str("END:STANDARD\r\n");
+    output.push_str("BEGIN:DAYLIGHT\r\n");
+    output.push_str("TZOFFSETFROM:+0000\r\n");
+    output.push_str("TZOFFSETTO:+0100\r\n");
+    output.push_str("TZNAME:BST\r\n");
+    output.push_str("DTSTART:19700329T010000\r\n");
+    output.push_str("RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3\r\n");
+    output.push_str("END:DAYLIGHT\r\n");
+    output.push_str("END:VTIMEZONE\r\n");
 
     for fixture in fixtures {
         let start = fixture.scheduled_at.format("%Y%m%dT%H%M%S").to_string();
@@ -162,8 +179,8 @@ fn build_ical(
             &format!("UID:fixture-{}-{}@footical.club", fixture.fixture_id, team_id),
         );
         push_folded(&mut output, &format!("DTSTAMP:{}", generation_timestamp));
-        push_folded(&mut output, &format!("DTSTART:{}", start));
-        push_folded(&mut output, &format!("DTEND:{}", end));
+        push_folded(&mut output, &format!("DTSTART;TZID=Europe/London:{}", start));
+        push_folded(&mut output, &format!("DTEND;TZID=Europe/London:{}", end));
         let opponent_name = if fixture.home_team_id == team_id {
             escape_ical_text(&fixture.away_team_name)
         } else {
