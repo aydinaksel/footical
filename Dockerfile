@@ -4,7 +4,7 @@ RUN rustup target add wasm32-unknown-unknown
 RUN cargo install cargo-leptos
 
 WORKDIR /app
-COPY Cargo.toml Cargo.lock Leptos.toml tailwind.config.js ./
+COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 
 RUN cargo leptos build --release

@@ -1,4 +1,4 @@
-app = "footical"
+app = "footical-website"
 primary_region = "lhr"
 
 [build]
