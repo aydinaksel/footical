@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use sqlx::PgPool;
+use tracing::{Level, event};
 
 const BASE_URL: &str = "https://footballmundial.com";
 
@@ -27,19 +28,40 @@ pub async fn run_scrape(
     let started_at = std::time::Instant::now();
     let fetcher = fetch::Fetcher::new()?;
 
-    tracing::info!("starting scrape of footballmundial.com");
+    event!(
+        name: "scrape.run.started",
+        Level::INFO,
+        scrape.source = "footballmundial.com",
+        "scrape started for {{scrape.source}}",
+    );
 
     let find_league_html = fetcher.fetch(&format!("{BASE_URL}/find_league")).await?;
     let league_group_paths = parse::parse_league_group_ids(&find_league_html);
-    tracing::info!(count = league_group_paths.len(), "found league groups");
+
+    event!(
+        name: "scrape.league_groups.discovered",
+        Level::INFO,
+        scrape.league_groups.count = league_group_paths.len(),
+        "discovered {{scrape.league_groups.count}} league groups",
+    );
 
     let mut all_venue_source_keys: HashSet<String> = HashSet::new();
     let mut all_league_groups = Vec::new();
 
-    for path in &league_group_paths {
+    let league_group_count = league_group_paths.len();
+    for (index, path) in league_group_paths.iter().enumerate() {
         let url = format!("{BASE_URL}{path}");
         let html = fetcher.fetch(&url).await?;
         let league_group = parse::parse_league_group(&html, path)?;
+
+        event!(
+            name: "scrape.league_group.fetched",
+            Level::INFO,
+            scrape.league_group.index = index + 1,
+            scrape.league_group.total = league_group_count,
+            scrape.league_group.name = league_group.league_group_name,
+            "fetched league group {{scrape.league_group.index}}/{{scrape.league_group.total}}: {{scrape.league_group.name}}",
+        );
 
         if let Some(venue_key) = &league_group.venue_source_key {
             all_venue_source_keys.insert(venue_key.clone());
@@ -49,14 +71,23 @@ pub async fn run_scrape(
     }
 
     let mut venues_upserted = 0;
+    let venue_count = all_venue_source_keys.len();
     for venue_key in &all_venue_source_keys {
         let url = format!("{BASE_URL}/info/venues/{venue_key}");
         let html = fetcher.fetch(&url).await?;
         let venue = parse::parse_venue(&html);
         ingest::upsert_venue(pool, venue_key, &venue.name, venue.address.as_deref()).await?;
         venues_upserted += 1;
+
+        event!(
+            name: "scrape.venue.upserted",
+            Level::INFO,
+            scrape.venue.index = venues_upserted,
+            scrape.venue.total = venue_count,
+            scrape.venue.name = venue.name,
+            "upserted venue {{scrape.venue.index}}/{{scrape.venue.total}}: {{scrape.venue.name}}",
+        );
     }
-    tracing::info!(venues_upserted, "upserted venues");
 
     let mut leagues_upserted = 0;
     let mut divisions_upserted = 0;
@@ -101,15 +132,34 @@ pub async fn run_scrape(
                 .push((league_endpoint.league_id.clone(), division_source_key));
         }
     }
-    tracing::info!(leagues_upserted, divisions_upserted, "upserted leagues and divisions");
+
+    event!(
+        name: "scrape.leagues.upserted",
+        Level::INFO,
+        scrape.leagues.count = leagues_upserted,
+        scrape.divisions.count = divisions_upserted,
+        "upserted {{scrape.leagues.count}} leagues and {{scrape.divisions.count}} divisions",
+    );
 
     let mut teams_upserted = 0;
     let mut fixtures_upserted = 0;
+    let division_count = all_league_ids_with_division_source_key.len();
 
-    for (league_id, division_source_key) in &all_league_ids_with_division_source_key {
+    for (division_index, (league_id, division_source_key)) in
+        all_league_ids_with_division_source_key.iter().enumerate()
+    {
         let url = format!("{BASE_URL}/info/leagues/{league_id}");
         let html = fetcher.fetch(&url).await?;
         let fixture_data = parse::parse_league_fixtures(&html, league_id);
+
+        event!(
+            name: "scrape.division_fixtures.fetched",
+            Level::INFO,
+            scrape.division.index = division_index + 1,
+            scrape.division.total = division_count,
+            scrape.division.fixtures_count = fixture_data.len(),
+            "fetched division fixtures {{scrape.division.index}}/{{scrape.division.total}}: {{scrape.division.fixtures_count}} fixtures",
+        );
 
         for fixture in &fixture_data {
             let home_team_source_key =
@@ -140,12 +190,29 @@ pub async fn run_scrape(
             fixtures_upserted += 1;
         }
     }
-    tracing::info!(fixtures_upserted, "upserted teams and fixtures");
+
+    event!(
+        name: "scrape.fixtures.upserted",
+        Level::INFO,
+        scrape.teams.count = teams_upserted,
+        scrape.fixtures.count = fixtures_upserted,
+        "upserted {{scrape.teams.count}} teams and {{scrape.fixtures.count}} fixtures",
+    );
 
     ical::regenerate_icals(pool, ical_output_directory).await?;
 
     let duration_seconds = started_at.elapsed().as_secs_f64();
-    tracing::info!(duration_seconds, "scrape completed");
+
+    event!(
+        name: "scrape.run.completed",
+        Level::INFO,
+        scrape.duration_seconds = duration_seconds,
+        scrape.venues.count = venues_upserted,
+        scrape.leagues.count = leagues_upserted,
+        scrape.divisions.count = divisions_upserted,
+        scrape.fixtures.count = fixtures_upserted,
+        "scrape completed in {{scrape.duration_seconds}}s: {{scrape.venues.count}} venues, {{scrape.leagues.count}} leagues, {{scrape.divisions.count}} divisions, {{scrape.fixtures.count}} fixtures",
+    );
 
     Ok(ScrapeResult {
         venues_upserted,

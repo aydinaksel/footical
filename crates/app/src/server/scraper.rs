@@ -42,10 +42,25 @@ pub async fn trigger_scrape() -> Result<(), ServerFnError> {
         state.last_run_at = Some(chrono::Utc::now());
         match result {
             Ok(scrape_result) => {
+                tracing::event!(
+                    name: "scrape.manual.completed",
+                    tracing::Level::INFO,
+                    scrape.trigger = "manual",
+                    scrape.duration_seconds = scrape_result.duration_seconds,
+                    scrape.fixtures.count = scrape_result.fixtures_upserted,
+                    "manual scrape completed in {{scrape.duration_seconds}}s: {{scrape.fixtures.count}} fixtures",
+                );
                 state.last_error = None;
                 state.last_result = Some(scrape_result);
             }
             Err(error) => {
+                tracing::event!(
+                    name: "scrape.manual.failed",
+                    tracing::Level::ERROR,
+                    scrape.trigger = "manual",
+                    error.message = %error,
+                    "manual scrape failed: {{error.message}}",
+                );
                 state.last_error = Some(error.to_string());
             }
         }

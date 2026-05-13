@@ -79,7 +79,13 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("failed to bind");
-    tracing::info!("listening on http://0.0.0.0:3000");
+    tracing::event!(
+        name: "server.started",
+        tracing::Level::INFO,
+        server.address = "0.0.0.0",
+        server.port = 3000,
+        "server listening on {{server.address}}:{{server.port}}",
+    );
     axum::serve(listener, app.into_make_service())
         .await
         .expect("server error");
@@ -114,10 +120,12 @@ async fn run_scheduled_scrapes(
             .to_std()
             .unwrap_or(std::time::Duration::from_secs(3600));
 
-        tracing::info!(
-            next_run = %next_run,
-            sleep_seconds = sleep_duration.as_secs(),
-            "scheduled scrape waiting",
+        tracing::event!(
+            name: "scrape.scheduled.waiting",
+            tracing::Level::INFO,
+            scrape.next_run = %next_run,
+            scrape.sleep_seconds = sleep_duration.as_secs(),
+            "scheduled scrape waiting until {{scrape.next_run}} ({{scrape.sleep_seconds}}s)",
         );
 
         tokio::time::sleep(sleep_duration).await;
@@ -125,7 +133,12 @@ async fn run_scheduled_scrapes(
         {
             let state = scrape_state.read().await;
             if state.is_running {
-                tracing::info!("skipping scheduled scrape, one is already running");
+                tracing::event!(
+                    name: "scrape.scheduled.skipped",
+                    tracing::Level::INFO,
+                    scrape.reason = "already_running",
+                    "skipping scheduled scrape: {{scrape.reason}}",
+                );
                 continue;
             }
         }
@@ -135,7 +148,12 @@ async fn run_scheduled_scrapes(
             state.is_running = true;
         }
 
-        tracing::info!("starting scheduled scrape");
+        tracing::event!(
+            name: "scrape.scheduled.started",
+            tracing::Level::INFO,
+            scrape.trigger = "scheduled",
+            "scheduled scrape started",
+        );
         let result = footical_scraper::run_scrape(&pool, &ical_directory).await;
 
         let mut state = scrape_state.write().await;
@@ -143,12 +161,25 @@ async fn run_scheduled_scrapes(
         state.last_run_at = Some(chrono::Utc::now());
         match result {
             Ok(scrape_result) => {
-                tracing::info!(?scrape_result, "scheduled scrape completed");
+                tracing::event!(
+                    name: "scrape.scheduled.completed",
+                    tracing::Level::INFO,
+                    scrape.trigger = "scheduled",
+                    scrape.duration_seconds = scrape_result.duration_seconds,
+                    scrape.fixtures.count = scrape_result.fixtures_upserted,
+                    "scheduled scrape completed in {{scrape.duration_seconds}}s: {{scrape.fixtures.count}} fixtures",
+                );
                 state.last_error = None;
                 state.last_result = Some(scrape_result);
             }
             Err(error) => {
-                tracing::error!(%error, "scheduled scrape failed");
+                tracing::event!(
+                    name: "scrape.scheduled.failed",
+                    tracing::Level::ERROR,
+                    scrape.trigger = "scheduled",
+                    error.message = %error,
+                    "scheduled scrape failed: {{error.message}}",
+                );
                 state.last_error = Some(error.to_string());
             }
         }

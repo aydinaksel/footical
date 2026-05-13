@@ -36,7 +36,7 @@ pub async fn upsert_league(
     sqlx::query(
         "INSERT INTO league (organisation_id, venue_id, name, day_of_week, source_key,
                              number_of_players, starts_at, ends_at, price_pence)
-         SELECT 1, venue.venue_id, $1, $2, $3, $4, $5, $6, $7
+         SELECT 1, venue.venue_id, $1, $2, $3, $4, $5::time, $6::time, $7
          FROM venue
          WHERE venue.source_key = $8
          ON CONFLICT (organisation_id, source_key) DO UPDATE SET
