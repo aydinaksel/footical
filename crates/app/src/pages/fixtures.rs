@@ -1,42 +1,13 @@
-use chrono::NaiveDateTime;
 use crate::components::team_picker::TeamPicker;
-use crate::types::{Team, clear_tracked_team_id};
-use gloo_net::http::Request;
+use crate::types::{Fixture, Team, clear_tracked_team_id};
 use leptos::prelude::*;
-use serde::Deserialize;
-use wasm_bindgen_futures::spawn_local;
-
-#[derive(Deserialize, Clone, Debug, PartialEq)]
-struct Fixture {
-    fixture_id: i32,
-    home_team_id: i32,
-    away_team_id: i32,
-    home_team_name: String,
-    away_team_name: String,
-    scheduled_at: String,
-    status: String,
-}
 
 #[component]
 pub fn FixturesPage() -> impl IntoView {
     let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
+    let all_fixtures = use_context::<RwSignal<Vec<Fixture>>>().expect("all_fixtures context");
     let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
     let is_data_loading = use_context::<RwSignal<bool>>().expect("is_data_loading context");
-
-    let all_fixtures = RwSignal::new(Vec::<Fixture>::new());
-    let is_fixtures_loading = RwSignal::new(true);
-
-    spawn_local(async move {
-        let fixtures = Request::get("https://data.footical.club/fixtures.json")
-            .send()
-            .await
-            .unwrap()
-            .json::<Vec<Fixture>>()
-            .await
-            .unwrap_or_default();
-        all_fixtures.set(fixtures);
-        is_fixtures_loading.set(false);
-    });
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
@@ -48,20 +19,18 @@ pub fn FixturesPage() -> impl IntoView {
         let Some(team_id) = tracked_team_id.get() else {
             return vec![];
         };
-        let now = chrono::Local::now().naive_local();
+        let now = chrono::Utc::now().naive_utc();
         all_fixtures
             .get()
             .into_iter()
             .filter(|fixture| {
                 (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
-                    && NaiveDateTime::parse_from_str(&fixture.scheduled_at, "%Y-%m-%dT%H:%M:%S")
-                        .map(|datetime| datetime >= now)
-                        .unwrap_or(false)
+                    && fixture.scheduled_at >= now
             })
             .collect()
     });
 
-    let on_change_team = move |_: web_sys::MouseEvent| {
+    let on_change_team = move |_: leptos::ev::MouseEvent| {
         clear_tracked_team_id();
         tracked_team_id.set(None);
     };
@@ -70,7 +39,7 @@ pub fn FixturesPage() -> impl IntoView {
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-md">
                 <Show
-                    when=move || !is_data_loading.get() && !is_fixtures_loading.get()
+                    when=move || !is_data_loading.get()
                     fallback=|| view! {
                         <div class="flex justify-center py-16">
                             <p class="text-sm text-gray-400">"Loading…"</p>
@@ -130,22 +99,9 @@ pub fn FixturesPage() -> impl IntoView {
                                             } else {
                                                 fixture.home_team_name.clone()
                                             };
-                                            let datetime = NaiveDateTime::parse_from_str(
-                                                &fixture.scheduled_at,
-                                                "%Y-%m-%dT%H:%M:%S",
-                                            );
-                                            let date_label = datetime
-                                                .as_ref()
-                                                .map(|datetime| datetime.format("%a %-d %b").to_string())
-                                                .unwrap_or_default();
-                                            let time_label = datetime
-                                                .as_ref()
-                                                .map(|datetime| datetime.format("%H:%M").to_string())
-                                                .unwrap_or_default();
-                                            let is_not_scheduled = !matches!(
-                                                fixture.status.as_str(),
-                                                "scheduled"
-                                            );
+                                            let date_label = fixture.scheduled_at.format("%a %-d %b").to_string();
+                                            let time_label = fixture.scheduled_at.format("%H:%M").to_string();
+                                            let is_not_scheduled = fixture.status != "scheduled";
                                             let status_label = fixture.status.to_uppercase();
 
                                             view! {

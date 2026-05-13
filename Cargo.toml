@@ -1,5 +1,5 @@
 [workspace]
-members = ["app", "generator"]
+members = ["crates/app", "crates/generator", "crates/scraper", "crates/secrets"]
 resolver = "2"
 
 [profile.release]

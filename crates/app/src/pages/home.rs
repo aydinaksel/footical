@@ -1,9 +1,6 @@
-use crate::clipboard::copy_to_clipboard;
 use crate::components::team_picker::TeamPicker;
 use crate::types::{Team, clear_tracked_team_id};
-use gloo_timers::callback::Timeout;
 use leptos::prelude::*;
-use wasm_bindgen_futures::spawn_local;
 
 #[component]
 pub fn Home() -> impl IntoView {
@@ -39,17 +36,18 @@ pub fn Home() -> impl IntoView {
         })
     });
 
-    let on_change_team = move |_: web_sys::MouseEvent| {
+    let on_change_team = move |_: leptos::ev::MouseEvent| {
         clear_tracked_team_id();
         tracked_team_id.set(None);
     };
 
-    let on_copy_click = move |_: web_sys::MouseEvent| {
+    #[cfg(feature = "hydrate")]
+    let on_copy_click = move |_: leptos::ev::MouseEvent| {
         if let Some(url) = calendar_url.get() {
-            spawn_local(async move {
-                if copy_to_clipboard(&url).await {
+            wasm_bindgen_futures::spawn_local(async move {
+                if crate::clipboard::copy_to_clipboard(&url).await {
                     is_copied.set(true);
-                    let reset_timeout = Timeout::new(1500, move || {
+                    let reset_timeout = gloo_timers::callback::Timeout::new(1500, move || {
                         is_copied.set(false);
                     });
                     reset_timeout.forget();
@@ -57,6 +55,9 @@ pub fn Home() -> impl IntoView {
             });
         }
     };
+
+    #[cfg(not(feature = "hydrate"))]
+    let on_copy_click = move |_: leptos::ev::MouseEvent| {};
 
     view! {
         <main class="flex justify-center p-4 pt-8">
