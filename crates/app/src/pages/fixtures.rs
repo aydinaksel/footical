@@ -7,7 +7,7 @@ pub fn FixturesPage() -> impl IntoView {
     let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
     let all_fixtures = use_context::<RwSignal<Vec<Fixture>>>().expect("all_fixtures context");
     let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
-    let is_data_loading = use_context::<RwSignal<bool>>().expect("is_data_loading context");
+    let is_data_loaded = use_context::<RwSignal<bool>>().expect("is_data_loaded context");
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
@@ -38,17 +38,17 @@ pub fn FixturesPage() -> impl IntoView {
     view! {
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-md">
-                <Show
-                    when=move || !is_data_loading.get()
-                    fallback=|| view! {
-                        <div class="flex justify-center py-16">
-                            <p class="text-sm text-gray-400">"Loading…"</p>
-                        </div>
+                {move || {
+                    if !is_data_loaded.get() {
+                        return view! {
+                            <div class="flex justify-center py-16">
+                                <p class="text-sm text-gray-400">"Loading…"</p>
+                            </div>
+                        }.into_any();
                     }
-                >
-                    <Show
-                        when=move || tracked_team.get().is_some()
-                        fallback=|| view! {
+
+                    if tracked_team.get().is_none() {
+                        return view! {
                             <div class="bg-white rounded-xl shadow-md p-8 space-y-6">
                                 <div>
                                     <h1 class="text-2xl font-bold text-gray-800">"My Team"</h1>
@@ -58,8 +58,10 @@ pub fn FixturesPage() -> impl IntoView {
                                 </div>
                                 <TeamPicker />
                             </div>
-                        }
-                    >
+                        }.into_any();
+                    }
+
+                    view! {
                         <div class="bg-white rounded-xl shadow-md overflow-hidden">
                             <div class="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
                                 <div>
@@ -79,68 +81,76 @@ pub fn FixturesPage() -> impl IntoView {
                                     "Change team"
                                 </button>
                             </div>
-                            <Show
-                                when=move || !upcoming_fixtures.get().is_empty()
-                                fallback=|| view! {
-                                    <p class="text-sm text-gray-400 text-center py-12">
-                                        "No upcoming fixtures."
-                                    </p>
+                            {move || {
+                                if upcoming_fixtures.get().is_empty() {
+                                    return view! {
+                                        <p class="text-sm text-gray-400 text-center py-12">
+                                            "No upcoming fixtures."
+                                        </p>
+                                    }.into_any();
                                 }
-                            >
-                                <ul class="divide-y divide-gray-100">
-                                    <For
-                                        each=move || upcoming_fixtures.get()
-                                        key=|fixture| fixture.fixture_id
-                                        children=move |fixture| {
-                                            let team_id = tracked_team_id.get().unwrap_or(0);
-                                            let is_home = fixture.home_team_id == team_id;
-                                            let opponent = if is_home {
-                                                fixture.away_team_name.clone()
-                                            } else {
-                                                fixture.home_team_name.clone()
-                                            };
-                                            let date_label = fixture.scheduled_at.format("%a %-d %b").to_string();
-                                            let time_label = fixture.scheduled_at.format("%H:%M").to_string();
-                                            let is_not_scheduled = fixture.status != "scheduled";
-                                            let status_label = fixture.status.to_uppercase();
 
-                                            view! {
-                                                <li class="px-6 py-4 flex items-center justify-between gap-4">
-                                                    <div class="min-w-0">
-                                                        <div class="flex items-center gap-2 mb-1">
-                                                            <span class=if is_home {
-                                                                "text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded"
-                                                            } else {
-                                                                "text-xs font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
-                                                            }>
-                                                                {if is_home { "HOME" } else { "AWAY" }}
-                                                            </span>
-                                                            <Show when=move || is_not_scheduled>
-                                                                <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                                                                    {status_label.clone()}
+                                view! {
+                                    <ul class="divide-y divide-gray-100">
+                                        <For
+                                            each=move || upcoming_fixtures.get()
+                                            key=|fixture| fixture.fixture_id
+                                            children=move |fixture| {
+                                                let team_id = tracked_team_id.get().unwrap_or(0);
+                                                let is_home = fixture.home_team_id == team_id;
+                                                let opponent = if is_home {
+                                                    fixture.away_team_name.clone()
+                                                } else {
+                                                    fixture.home_team_name.clone()
+                                                };
+                                                let date_label = fixture.scheduled_at.format("%a %-d %b").to_string();
+                                                let time_label = fixture.scheduled_at.format("%H:%M").to_string();
+                                                let is_not_scheduled = fixture.status != "scheduled";
+                                                let status_label = fixture.status.to_uppercase();
+
+                                                view! {
+                                                    <li class="px-6 py-4 flex items-center justify-between gap-4">
+                                                        <div class="min-w-0">
+                                                            <div class="flex items-center gap-2 mb-1">
+                                                                <span class=if is_home {
+                                                                    "text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded"
+                                                                } else {
+                                                                    "text-xs font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                                                                }>
+                                                                    {if is_home { "HOME" } else { "AWAY" }}
                                                                 </span>
-                                                            </Show>
+                                                                {if is_not_scheduled {
+                                                                    Some(view! {
+                                                                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                                                                            {status_label}
+                                                                        </span>
+                                                                    })
+                                                                } else {
+                                                                    None
+                                                                }}
+                                                            </div>
+                                                            <p class="font-medium text-gray-800 truncate">
+                                                                {opponent}
+                                                            </p>
                                                         </div>
-                                                        <p class="font-medium text-gray-800 truncate">
-                                                            {opponent}
-                                                        </p>
-                                                    </div>
-                                                    <div class="text-right shrink-0">
-                                                        <p class="font-medium text-gray-800">
-                                                            {time_label}
-                                                        </p>
-                                                        <p class="text-sm text-gray-400">{date_label}</p>
-                                                    </div>
-                                                </li>
+                                                        <div class="text-right shrink-0">
+                                                            <p class="font-medium text-gray-800">
+                                                                {time_label}
+                                                            </p>
+                                                            <p class="text-sm text-gray-400">{date_label}</p>
+                                                        </div>
+                                                    </li>
+                                                }
                                             }
-                                        }
-                                    />
-                                </ul>
-                            </Show>
+                                        />
+                                    </ul>
+                                }.into_any()
+                            }}
                         </div>
-                    </Show>
-                </Show>
+                    }.into_any()
+                }}
             </div>
         </main>
     }
+    .into_any()
 }

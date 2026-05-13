@@ -5,3 +5,15 @@ resolver = "2"
 [profile.release]
 opt-level = "z"
 lto = true
+
+[[workspace.metadata.leptos]]
+name = "footical-app"
+bin-package = "footical-app"
+lib-package = "footical-app"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+tailwind-input-file = "crates/app/style/input.css"
+site-addr = "0.0.0.0:3000"
+reload-port = 3001
+bin-features = ["ssr"]
+lib-features = ["hydrate"]

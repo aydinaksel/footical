@@ -68,42 +68,48 @@ pub fn TeamPicker() -> impl IntoView {
                 on:blur=move |_| is_open.set(false)
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <Show when=move || is_open.get() && !filtered_options.get().is_empty()>
-                <ul class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    <For
-                        each=move || filtered_options.get()
-                        key=|option| option.team_id
-                        children=move |option| {
-                            let team_id = option.team_id;
-                            let display_name = option.team_name.clone();
-                            let context_label = format!(
-                                "{} — {}",
-                                option.division_name, option.league_name
-                            );
-                            let team_name = option.team_name;
-                            view! {
-                                <li>
-                                    <button
-                                        type="button"
-                                        tabindex="-1"
-                                        class="w-full text-left px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
-                                        on:mousedown=|ev| ev.prevent_default()
-                                        on:click=move |_| {
-                                            save_tracked_team_id(team_id);
-                                            tracked_team_id.set(Some(team_id));
-                                            query.set(team_name.clone());
-                                            is_open.set(false);
-                                        }
-                                    >
-                                        <span class="font-medium text-gray-800">{display_name}</span>
-                                        <span class="text-sm text-gray-400 ml-2">{context_label}</span>
-                                    </button>
-                                </li>
+            {move || {
+                if !is_open.get() || filtered_options.get().is_empty() {
+                    return None;
+                }
+                Some(view! {
+                    <ul class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <For
+                            each=move || filtered_options.get()
+                            key=|option| option.team_id
+                            children=move |option| {
+                                let team_id = option.team_id;
+                                let display_name = option.team_name.clone();
+                                let context_label = format!(
+                                    "{}, {}",
+                                    option.division_name, option.league_name
+                                );
+                                let team_name = option.team_name;
+                                view! {
+                                    <li>
+                                        <button
+                                            type="button"
+                                            tabindex="-1"
+                                            class="w-full text-left px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                            on:mousedown=|ev| ev.prevent_default()
+                                            on:click=move |_| {
+                                                save_tracked_team_id(team_id);
+                                                tracked_team_id.set(Some(team_id));
+                                                query.set(team_name.clone());
+                                                is_open.set(false);
+                                            }
+                                        >
+                                            <span class="font-medium text-gray-800">{display_name}</span>
+                                            <span class="text-sm text-gray-400 ml-2">{context_label}</span>
+                                        </button>
+                                    </li>
+                                }
                             }
-                        }
-                    />
-                </ul>
-            </Show>
+                        />
+                    </ul>
+                })
+            }}
         </div>
     }
+    .into_any()
 }

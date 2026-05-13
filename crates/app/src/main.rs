@@ -7,9 +7,18 @@ async fn main() {
 
     tracing_subscriber::fmt::init();
 
+    footical_secrets::inject_from_bws(&[
+        ("DATABASE_URL", "aa7a6d8e-af00-4910-937e-b44900b65003"),
+        ("ADMIN_PASSWORD", "6f4d8d95-9208-405d-acd7-b44900b7df81"),
+        ("COOKIE_SECRET", "5265df47-9b76-425c-898a-b44900b7eeb9"),
+    ])
+    .await
+    .expect("failed to inject secrets from Bitwarden");
+
+    let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_owned());
     let leptos_options = LeptosOptions::builder()
         .output_name("footical-app")
-        .site_root("site")
+        .site_root(site_root)
         .site_pkg_dir("pkg")
         .site_addr(std::net::SocketAddr::from(([0, 0, 0, 0], 3000)))
         .build();
@@ -50,7 +59,10 @@ async fn main() {
                     leptos::context::provide_context(ical_path.clone());
                 }
             },
-            footical_app::app::App,
+            {
+                let leptos_options = leptos_options.clone();
+                move || footical_app::app::shell(leptos_options.clone())
+            },
         )
         .fallback(leptos_axum::file_and_error_handler::<
             footical_app::server::AppState,

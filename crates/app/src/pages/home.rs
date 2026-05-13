@@ -6,7 +6,7 @@ use leptos::prelude::*;
 pub fn Home() -> impl IntoView {
     let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
     let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
-    let is_data_loading = use_context::<RwSignal<bool>>().expect("is_data_loading context");
+    let is_data_loaded = use_context::<RwSignal<bool>>().expect("is_data_loaded context");
     let is_copied = RwSignal::new(false);
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
@@ -62,17 +62,17 @@ pub fn Home() -> impl IntoView {
     view! {
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-md">
-                <Show
-                    when=move || !is_data_loading.get()
-                    fallback=|| view! {
-                        <div class="flex justify-center py-16">
-                            <p class="text-sm text-gray-400">"Loading…"</p>
-                        </div>
+                {move || {
+                    if !is_data_loaded.get() {
+                        return view! {
+                            <div class="flex justify-center py-16">
+                                <p class="text-sm text-gray-400">"Loading…"</p>
+                            </div>
+                        }.into_any();
                     }
-                >
-                    <Show
-                        when=move || tracked_team.get().is_some()
-                        fallback=|| view! {
+
+                    if tracked_team.get().is_none() {
+                        return view! {
                             <div class="bg-white rounded-xl shadow-md p-8 space-y-6">
                                 <div>
                                     <h1 class="text-2xl font-bold text-gray-800">"Subscribe"</h1>
@@ -82,8 +82,10 @@ pub fn Home() -> impl IntoView {
                                 </div>
                                 <TeamPicker />
                             </div>
-                        }
-                    >
+                        }.into_any();
+                    }
+
+                    view! {
                         <div class="bg-white rounded-xl shadow-md overflow-hidden">
                             <div class="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
                                 <div>
@@ -178,9 +180,10 @@ pub fn Home() -> impl IntoView {
                                 </div>
                             </div>
                         </div>
-                    </Show>
-                </Show>
+                    }.into_any()
+                }}
             </div>
         </main>
     }
+    .into_any()
 }

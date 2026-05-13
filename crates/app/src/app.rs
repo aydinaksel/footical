@@ -7,6 +7,7 @@ use crate::pages::admin::AdminPage;
 use crate::pages::fixtures::FixturesPage;
 use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
+#[cfg(feature = "hydrate")]
 use crate::server::data::{get_divisions, get_fixtures, get_leagues, get_teams};
 use crate::types::{Division, Fixture, League, Team, read_tracked_team_id};
 
@@ -31,46 +32,38 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let leagues_resource = Resource::new(|| (), |_| get_leagues());
-    let divisions_resource = Resource::new(|| (), |_| get_divisions());
-    let teams_resource = Resource::new(|| (), |_| get_teams());
-    let fixtures_resource = Resource::new(|| (), |_| get_fixtures());
-
     let all_leagues: RwSignal<Vec<League>> = RwSignal::new(vec![]);
     let all_divisions: RwSignal<Vec<Division>> = RwSignal::new(vec![]);
     let all_teams: RwSignal<Vec<Team>> = RwSignal::new(vec![]);
     let all_fixtures: RwSignal<Vec<Fixture>> = RwSignal::new(vec![]);
     let tracked_team_id: RwSignal<Option<i32>> = RwSignal::new(read_tracked_team_id());
-    let is_data_loading: RwSignal<bool> = RwSignal::new(true);
+    let is_data_loaded: RwSignal<bool> = RwSignal::new(false);
 
-    Effect::new(move || {
-        if let Some(Ok(leagues)) = leagues_resource.get() {
-            all_leagues.set(leagues);
-        }
-        if let Some(Ok(divisions)) = divisions_resource.get() {
-            all_divisions.set(divisions);
-        }
-        if let Some(Ok(teams)) = teams_resource.get() {
-            all_teams.set(teams);
-        }
-        if let Some(Ok(fixtures)) = fixtures_resource.get() {
-            all_fixtures.set(fixtures);
-        }
-        if leagues_resource.get().is_some()
-            && divisions_resource.get().is_some()
-            && teams_resource.get().is_some()
-            && fixtures_resource.get().is_some()
-        {
-            is_data_loading.set(false);
-        }
-    });
+    #[cfg(feature = "hydrate")]
+    {
+        leptos::task::spawn_local(async move {
+            if let Ok(data) = get_leagues().await {
+                all_leagues.set(data);
+            }
+            if let Ok(data) = get_divisions().await {
+                all_divisions.set(data);
+            }
+            if let Ok(data) = get_teams().await {
+                all_teams.set(data);
+            }
+            if let Ok(data) = get_fixtures().await {
+                all_fixtures.set(data);
+            }
+            is_data_loaded.set(true);
+        });
+    }
 
     provide_context(all_leagues);
     provide_context(all_divisions);
     provide_context(all_teams);
     provide_context(all_fixtures);
     provide_context(tracked_team_id);
-    provide_context(is_data_loading);
+    provide_context(is_data_loaded);
 
     view! {
         <Router>
@@ -85,4 +78,5 @@ pub fn App() -> impl IntoView {
             </div>
         </Router>
     }
+    .into_any()
 }
