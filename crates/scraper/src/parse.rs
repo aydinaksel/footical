@@ -182,17 +182,17 @@ pub fn parse_venue(html: &str) -> VenueData {
     VenueData { name, address }
 }
 
-pub fn parse_league_fixtures(html: &str, league_id: &str) -> Vec<FixtureData> {
+pub fn parse_league_fixtures(html: &str, _league_id: &str) -> Vec<FixtureData> {
     let document = Html::parse_document(html);
     let group_selector = Selector::parse(
         "#fixtures_accordion_fixtures > div > div:not(.panel-heading)",
     )
     .expect("valid selector");
-
+    let row_selector = Selector::parse("table > tbody > tr").expect("valid selector");
+    let link_selector = Selector::parse("a[href]").expect("valid selector");
     let date_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2}").expect("valid regex");
-    let fixture_regex =
-        regex::Regex::new(r"(.*?)\s*\[/info/teams/(\d+)\]\s*v\s*(.*?)\s*\[/info/teams/(\d+)\]")
-            .expect("valid regex");
+    let time_regex = regex::Regex::new(r"^\d{2}:\d{2}$").expect("valid regex");
+    let team_id_regex = regex::Regex::new(r"/info/teams/(\d+)").expect("valid regex");
 
     let mut fixtures = Vec::new();
 
@@ -203,29 +203,40 @@ pub fn parse_league_fixtures(html: &str, league_id: &str) -> Vec<FixtureData> {
             None => continue,
         };
 
-        let row_selector = Selector::parse("table > tbody > tr").expect("valid selector");
         for row in group.select(&row_selector) {
             let text = row.text().collect::<String>();
-            let cleaned = text.split_whitespace().collect::<Vec<_>>().join(" ").trim().to_owned();
+            let tokens: Vec<&str> = text.split_whitespace().collect();
 
-            if cleaned.is_empty() {
+            if !tokens.iter().any(|token| *token == "v") {
                 continue;
             }
 
-            let (match_time, rest) = cleaned.split_once(' ').unwrap_or(("", &cleaned));
+            let match_time = tokens
+                .iter()
+                .find(|token| time_regex.is_match(token))
+                .unwrap_or(&"00:00");
 
-            if let Some(captures) = fixture_regex.captures(rest) {
+            let team_links: Vec<(i32, String)> = row
+                .select(&link_selector)
+                .filter_map(|link| {
+                    let href = link.value().attr("href")?;
+                    let team_id = team_id_regex.captures(href)?[1].parse().ok()?;
+                    let team_name = link.text().collect::<String>().trim().to_owned();
+                    Some((team_id, team_name))
+                })
+                .collect();
+
+            if team_links.len() >= 2 {
                 fixtures.push(FixtureData {
                     fixture_date: format!("{date}T{match_time}:00"),
-                    mundial_home_team_id: captures[2].parse().unwrap_or(0),
-                    mundial_home_team_name: captures[1].trim().to_owned(),
-                    mundial_away_team_id: captures[4].parse().unwrap_or(0),
-                    mundial_away_team_name: captures[3].trim().to_owned(),
+                    mundial_home_team_id: team_links[0].0,
+                    mundial_home_team_name: team_links[0].1.clone(),
+                    mundial_away_team_id: team_links[1].0,
+                    mundial_away_team_name: team_links[1].1.clone(),
                 });
             }
         }
     }
 
-    let _ = league_id;
     fixtures
 }
