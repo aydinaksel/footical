@@ -17,64 +17,52 @@ async fn main() {
 
     let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_owned());
     let leptos_options = LeptosOptions::builder()
-        .output_name("footical-app")
+        .output_name("footical-website")
         .site_root(site_root)
         .site_pkg_dir("pkg")
         .site_addr(std::net::SocketAddr::from(([0, 0, 0, 0], 3000)))
         .build();
 
-    let routes = generate_route_list(footical_app::app::App);
+    let routes = generate_route_list(footical_website::app::App);
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = sqlx::PgPool::connect(&database_url)
         .await
         .expect("failed to connect to database");
 
-    let ical_directory = std::env::var("ICAL_OUTPUT_DIR").unwrap_or_else(|_| "./ical".to_owned());
-    let ical_path = std::path::PathBuf::from(&ical_directory);
+    let scrape_state = footical_website::server::new_scrape_state();
 
-    let scrape_state = footical_app::server::new_scrape_state();
-
-    let ical_service = tower_http::services::ServeDir::new(&ical_directory);
-
-    let app_state = footical_app::server::AppState {
+    let app_state = footical_website::server::AppState {
         pool: pool.clone(),
         leptos_options: leptos_options.clone(),
-        ical_directory: ical_path.clone(),
         scrape_state: scrape_state.clone(),
     };
 
     let app = Router::new()
-        .nest_service("/ical", ical_service)
+        .route("/ical/{filename}", axum::routing::get(footical_website::server::ical::handler))
         .leptos_routes_with_context(
             &app_state,
             routes,
             {
                 let pool = pool.clone();
                 let scrape_state = scrape_state.clone();
-                let ical_path = ical_path.clone();
                 move || {
                     leptos::context::provide_context(pool.clone());
                     leptos::context::provide_context(scrape_state.clone());
-                    leptos::context::provide_context(ical_path.clone());
                 }
             },
             {
                 let leptos_options = leptos_options.clone();
-                move || footical_app::app::shell(leptos_options.clone())
+                move || footical_website::app::shell(leptos_options.clone())
             },
         )
         .fallback(leptos_axum::file_and_error_handler::<
-            footical_app::server::AppState,
+            footical_website::server::AppState,
             _,
-        >(footical_app::app::shell))
+        >(footical_website::app::shell))
         .with_state(app_state);
 
-    tokio::spawn(run_scheduled_scrapes(
-        pool.clone(),
-        ical_path.clone(),
-        scrape_state.clone(),
-    ));
+    tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
@@ -94,8 +82,7 @@ async fn main() {
 #[cfg(feature = "ssr")]
 async fn run_scheduled_scrapes(
     pool: sqlx::PgPool,
-    ical_directory: std::path::PathBuf,
-    scrape_state: footical_app::server::ScrapeStateHandle,
+    scrape_state: footical_website::server::ScrapeStateHandle,
 ) {
     use chrono::{Local, NaiveTime};
 
@@ -154,7 +141,7 @@ async fn run_scheduled_scrapes(
             scrape.trigger = "scheduled",
             "scheduled scrape started",
         );
-        let result = footical_scraper::run_scrape(&pool, &ical_directory).await;
+        let result = footical_scraper::run_scrape(&pool).await;
 
         let mut state = scrape_state.write().await;
         state.is_running = false;

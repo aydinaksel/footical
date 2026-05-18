@@ -1,11 +1,2 @@
-venv
 .env
-docs/*
-!docs/.gitkeep
 target/
-dist/
-static/*.json
-static/*.ics
-generator/static/*.ics
-crates/generator/static/*.ics
-scrape-football-mundial.json

@@ -4,7 +4,6 @@ mod ingest;
 mod parse;
 
 use std::collections::HashSet;
-use std::path::Path;
 
 use sqlx::PgPool;
 use tracing::{Level, event};
@@ -21,10 +20,7 @@ pub struct ScrapeResult {
     pub duration_seconds: f64,
 }
 
-pub async fn run_scrape(
-    pool: &PgPool,
-    ical_output_directory: &Path,
-) -> anyhow::Result<ScrapeResult> {
+pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
     let started_at = std::time::Instant::now();
     let fetcher = fetch::Fetcher::new()?;
 
@@ -198,8 +194,6 @@ pub async fn run_scrape(
         scrape.fixtures.count = fixtures_upserted,
         "upserted {{scrape.teams.count}} teams and {{scrape.fixtures.count}} fixtures",
     );
-
-    ical::regenerate_icals(pool, ical_output_directory).await?;
 
     let duration_seconds = started_at.elapsed().as_secs_f64();
 

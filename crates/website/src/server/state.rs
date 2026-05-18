@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
@@ -7,7 +6,6 @@ use tokio::sync::RwLock;
 pub struct AppState {
     pub pool: sqlx::PgPool,
     pub leptos_options: leptos::prelude::LeptosOptions,
-    pub ical_directory: PathBuf,
     pub scrape_state: ScrapeStateHandle,
 }
 

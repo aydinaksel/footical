@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/app", "crates/generator", "crates/scraper", "crates/secrets"]
+members = ["crates/website", "crates/scraper", "crates/secrets"]
 resolver = "2"
 
 [profile.release]
@@ -7,12 +7,12 @@ opt-level = "z"
 lto = true
 
 [[workspace.metadata.leptos]]
-name = "footical-app"
-bin-package = "footical-app"
-lib-package = "footical-app"
+name = "footical-website"
+bin-package = "footical-website"
+lib-package = "footical-website"
 site-root = "target/site"
 site-pkg-dir = "pkg"
-tailwind-input-file = "crates/app/style/input.css"
+tailwind-input-file = "crates/website/style/input.css"
 site-addr = "0.0.0.0:3000"
 reload-port = 3001
 bin-features = ["ssr"]

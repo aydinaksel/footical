@@ -1,16 +1,8 @@
-use std::collections::HashMap;
-use std::path::Path;
-
 use chrono::NaiveDateTime;
 use sqlx::PgPool;
 
 #[derive(sqlx::FromRow)]
-struct TeamRow {
-    team_id: i32,
-    name: String,
-}
-
-#[derive(sqlx::FromRow)]
+#[allow(dead_code)]
 struct FixtureRow {
     fixture_id: i32,
     home_team_id: i32,
@@ -23,14 +15,16 @@ struct FixtureRow {
     venue_address: Option<String>,
 }
 
-pub async fn regenerate_icals(pool: &PgPool, output_directory: &Path) -> anyhow::Result<()> {
-    std::fs::create_dir_all(output_directory)?;
+pub async fn generate_for_team(pool: &PgPool, team_id: i32) -> anyhow::Result<Option<String>> {
+    let team_name: Option<String> = sqlx::query_scalar("SELECT name FROM team WHERE team_id = $1")
+        .bind(team_id)
+        .fetch_optional(pool)
+        .await?;
 
-    let teams = sqlx::query_as::<_, TeamRow>(
-        "SELECT team_id, name FROM team ORDER BY name",
-    )
-    .fetch_all(pool)
-    .await?;
+    let team_name = match team_name {
+        Some(name) => name,
+        None => return Ok(None),
+    };
 
     let fixtures = sqlx::query_as::<_, FixtureRow>(
         "SELECT
@@ -49,42 +43,18 @@ pub async fn regenerate_icals(pool: &PgPool, output_directory: &Path) -> anyhow:
          JOIN division ON division.division_id = fixture.division_id
          JOIN league ON league.league_id = division.league_id
          LEFT JOIN venue ON venue.venue_id = league.venue_id
+         WHERE fixture.home_team_id = $1 OR fixture.away_team_id = $1
          ORDER BY fixture.scheduled_at",
     )
+    .bind(team_id)
     .fetch_all(pool)
     .await?;
 
-    let mut fixtures_by_team: HashMap<i32, Vec<&FixtureRow>> = HashMap::new();
-    for fixture in &fixtures {
-        fixtures_by_team
-            .entry(fixture.home_team_id)
-            .or_default()
-            .push(fixture);
-        fixtures_by_team
-            .entry(fixture.away_team_id)
-            .or_default()
-            .push(fixture);
-    }
-
     let generation_timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let fixture_refs: Vec<&FixtureRow> = fixtures.iter().collect();
+    let ical = build_ical(&team_name, team_id, &fixture_refs, &generation_timestamp);
 
-    for team in &teams {
-        let team_fixtures = fixtures_by_team
-            .get(&team.team_id)
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
-        let ical = build_ical(&team.name, team.team_id, team_fixtures, &generation_timestamp);
-        let path = output_directory.join(format!("{}.ics", team.team_id));
-        atomic_write(&path, ical.as_bytes())?;
-    }
-
-    tracing::info!(
-        teams = teams.len(),
-        fixtures = fixtures.len(),
-        "regenerated iCal files",
-    );
-
-    Ok(())
+    Ok(Some(ical))
 }
 
 fn build_ical(
@@ -217,9 +187,3 @@ fn utf8_boundary(bytes: &[u8], max_bytes: usize) -> usize {
     boundary
 }
 
-fn atomic_write(path: &Path, content: &[u8]) -> anyhow::Result<()> {
-    let temp_path = path.with_extension("tmp");
-    std::fs::write(&temp_path, content)?;
-    std::fs::rename(&temp_path, path)?;
-    Ok(())
-}

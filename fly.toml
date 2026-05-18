@@ -7,7 +7,6 @@ primary_region = "lhr"
 [env]
   LEPTOS_SITE_ADDR = "0.0.0.0:3000"
   LEPTOS_SITE_ROOT = "/app/site"
-  ICAL_OUTPUT_DIR = "/data/ical"
   SCRAPE_HOUR = "1"
 
 [http_service]
