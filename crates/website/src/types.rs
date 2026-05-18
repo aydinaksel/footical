@@ -35,6 +35,20 @@ pub struct Fixture {
     pub status: String,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+pub struct TodayFixture {
+    pub fixture_id: i32,
+    pub scheduled_at: chrono::NaiveDateTime,
+    pub status: String,
+    pub home_team_name: String,
+    pub away_team_name: String,
+    pub division_name: String,
+    pub league_name: String,
+    pub venue_name: Option<String>,
+    pub venue_address: Option<String>,
+}
+
 #[cfg(feature = "hydrate")]
 pub fn read_tracked_team_id() -> Option<i32> {
     web_sys::window()?

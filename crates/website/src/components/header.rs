@@ -21,6 +21,7 @@ pub fn Header() -> impl IntoView {
             <nav class="max-w-md mx-auto px-4 py-3 flex gap-6">
                 <A href="/"><span class=nav_class("/")>"Home"</span></A>
                 <A href="/fixtures"><span class=nav_class("/fixtures")>"Fixtures"</span></A>
+                <A href="/today"><span class=nav_class("/today")>"Today"</span></A>
                 <span class="ml-auto">
                     <A href="/admin"><span class=nav_class("/admin")>"Admin"</span></A>
                 </span>

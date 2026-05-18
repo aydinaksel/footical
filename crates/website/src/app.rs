@@ -7,6 +7,7 @@ use crate::pages::admin::AdminPage;
 use crate::pages::fixtures::FixturesPage;
 use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
+use crate::pages::today::TodayPage;
 #[cfg(feature = "hydrate")]
 use crate::server::data::{get_divisions, get_fixtures, get_leagues, get_teams};
 use crate::types::{Division, Fixture, League, Team, read_tracked_team_id};
@@ -72,6 +73,7 @@ pub fn App() -> impl IntoView {
                 <Routes fallback=|| "Page not found">
                     <Route path=path!("/") view=Home />
                     <Route path=path!("/fixtures") view=FixturesPage />
+                    <Route path=path!("/today") view=TodayPage />
                     <Route path=path!("/admin/login") view=LoginPage />
                     <Route path=path!("/admin") view=AdminPage />
                 </Routes>
