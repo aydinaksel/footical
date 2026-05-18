@@ -11,9 +11,11 @@ RUN cargo leptos build --release
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates iptables ip6tables && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://tailscale.com/install.sh | sh
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /usr/local/bin/tailscaled
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /usr/local/bin/tailscale
+RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
 
 COPY --from=builder /app/target/release/footical-website /usr/local/bin/
 COPY --from=builder /app/target/site /app/site

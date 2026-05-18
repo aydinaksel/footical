@@ -12,7 +12,3 @@ primary_region = "lhr"
 [http_service]
   internal_port = 3000
   force_https = true
-
-[mounts]
-  source = "footical_data"
-  destination = "/data"
