@@ -142,3 +142,20 @@ pub async fn upsert_teams_and_fixture(
     .await?;
     Ok(())
 }
+
+pub async fn delete_stale_fixtures(
+    pool: &PgPool,
+    division_source_key: &str,
+    active_fixture_source_keys: &[String],
+) -> anyhow::Result<u64> {
+    let result = sqlx::query(
+        "DELETE FROM fixture
+         WHERE division_id = (SELECT division_id FROM division WHERE source_key = $1)
+           AND source_key != ALL($2)",
+    )
+    .bind(division_source_key)
+    .bind(active_fixture_source_keys)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}

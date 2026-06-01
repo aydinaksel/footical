@@ -17,6 +17,7 @@ pub struct ScrapeResult {
     pub divisions_upserted: usize,
     pub teams_upserted: usize,
     pub fixtures_upserted: usize,
+    pub stale_fixtures_deleted: u64,
     pub duration_seconds: f64,
 }
 
@@ -139,6 +140,7 @@ pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
 
     let mut teams_upserted = 0;
     let mut fixtures_upserted = 0;
+    let mut stale_fixtures_deleted: u64 = 0;
     let division_count = all_league_ids_with_division_source_key.len();
 
     for (division_index, (league_id, division_source_key)) in
@@ -156,6 +158,8 @@ pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
             scrape.division.fixtures_count = fixture_data.len(),
             "fetched division fixtures {{scrape.division.index}}/{{scrape.division.total}}: {{scrape.division.fixtures_count}} fixtures",
         );
+
+        let mut active_fixture_source_keys = Vec::with_capacity(fixture_data.len());
 
         for fixture in &fixture_data {
             let home_team_source_key =
@@ -182,8 +186,28 @@ pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
             )
             .await?;
 
+            active_fixture_source_keys.push(fixture_source_key);
             teams_upserted += 2;
             fixtures_upserted += 1;
+        }
+
+        let stale_deleted = ingest::delete_stale_fixtures(
+            pool,
+            division_source_key,
+            &active_fixture_source_keys,
+        )
+        .await?;
+
+        stale_fixtures_deleted += stale_deleted;
+
+        if stale_deleted > 0 {
+            event!(
+                name: "scrape.fixtures.stale_deleted",
+                Level::INFO,
+                scrape.fixtures.stale_deleted = stale_deleted,
+                scrape.division.source_key = division_source_key,
+                "deleted {{scrape.fixtures.stale_deleted}} stale fixtures from division {{scrape.division.source_key}}",
+            );
         }
     }
 
@@ -205,7 +229,8 @@ pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
         scrape.leagues.count = leagues_upserted,
         scrape.divisions.count = divisions_upserted,
         scrape.fixtures.count = fixtures_upserted,
-        "scrape completed in {{scrape.duration_seconds}}s: {{scrape.venues.count}} venues, {{scrape.leagues.count}} leagues, {{scrape.divisions.count}} divisions, {{scrape.fixtures.count}} fixtures",
+        scrape.stale_fixtures_deleted = stale_fixtures_deleted,
+        "scrape completed in {{scrape.duration_seconds}}s: {{scrape.venues.count}} venues, {{scrape.leagues.count}} leagues, {{scrape.divisions.count}} divisions, {{scrape.fixtures.count}} fixtures, {{scrape.stale_fixtures_deleted}} stale deleted",
     );
 
     Ok(ScrapeResult {
@@ -214,6 +239,7 @@ pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
         divisions_upserted,
         teams_upserted,
         fixtures_upserted,
+        stale_fixtures_deleted,
         duration_seconds,
     })
 }
