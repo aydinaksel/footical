@@ -5,8 +5,6 @@ use bitwarden::{
 };
 use uuid::Uuid;
 
-const DOCKER_SECRET_PATH: &str = "/run/secrets/bws_access_token";
-
 #[derive(Debug, thiserror::Error)]
 pub enum SecretsError {
     #[error("BWS login failed: {message}")]
@@ -25,27 +23,24 @@ pub enum SecretsError {
         source: uuid::Error,
     },
 
-    #[error("BWS access token not found in BWS_ACCESS_TOKEN env var or {}", DOCKER_SECRET_PATH)]
+    #[error("BWS access token file not found; set BWS_ACCESS_TOKEN_FILE to a readable path")]
     AccessTokenNotFound,
 }
 
 fn load_access_token() -> Result<String, SecretsError> {
-    if let Ok(token) = std::env::var("BWS_ACCESS_TOKEN") {
-        if !token.is_empty() {
-            return Ok(token);
-        }
+    let path =
+        std::env::var("BWS_ACCESS_TOKEN_FILE").map_err(|_| SecretsError::AccessTokenNotFound)?;
+
+    let token = std::fs::read_to_string(&path)
+        .map_err(|_| SecretsError::AccessTokenNotFound)?
+        .trim()
+        .to_owned();
+
+    if token.is_empty() {
+        return Err(SecretsError::AccessTokenNotFound);
     }
 
-    std::fs::read_to_string(DOCKER_SECRET_PATH)
-        .map_err(|_| SecretsError::AccessTokenNotFound)
-        .map(|token| token.trim().to_owned())
-        .and_then(|token| {
-            if token.is_empty() {
-                Err(SecretsError::AccessTokenNotFound)
-            } else {
-                Ok(token)
-            }
-        })
+    Ok(token)
 }
 
 pub async fn inject_from_bws(

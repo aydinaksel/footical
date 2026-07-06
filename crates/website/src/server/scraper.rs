@@ -13,7 +13,7 @@ pub struct ScrapeStatus {
 
 #[server]
 pub async fn trigger_scrape() -> Result<(), ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let scrape_state = use_context::<ScrapeStateHandle>()
         .ok_or_else(|| ServerFnError::new("no scrape state"))?;

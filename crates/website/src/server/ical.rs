@@ -3,7 +3,7 @@ use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 
 pub async fn handler(
-    State(pool): State<sqlx::PgPool>,
+    State(pool): State<sqlx::SqlitePool>,
     Path(filename): Path<String>,
 ) -> impl IntoResponse {
     let team_id: i32 = match filename.strip_suffix(".ics").and_then(|s| s.parse().ok()) {

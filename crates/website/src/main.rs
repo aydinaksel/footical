@@ -16,19 +16,35 @@ async fn main() {
     .expect("failed to inject secrets from Bitwarden");
 
     let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_owned());
+    let site_addr = std::env::var("LEPTOS_SITE_ADDR")
+        .ok()
+        .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
+        .unwrap_or_else(|| std::net::SocketAddr::from(([0, 0, 0, 0], 3000)));
     let leptos_options = LeptosOptions::builder()
         .output_name("footical-website")
         .site_root(site_root)
         .site_pkg_dir("pkg")
-        .site_addr(std::net::SocketAddr::from(([0, 0, 0, 0], 3000)))
+        .site_addr(site_addr)
         .build();
 
     let routes = generate_route_list(footical_website::app::App);
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = sqlx::PgPool::connect(&database_url)
+    let connect_options = database_url
+        .parse::<sqlx::sqlite::SqliteConnectOptions>()
+        .expect("invalid DATABASE_URL")
+        .create_if_missing(true)
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect_with(connect_options)
         .await
         .expect("failed to connect to database");
+
+    sqlx::raw_sql(include_str!("../schema.sql"))
+        .execute(&pool)
+        .await
+        .expect("failed to apply database schema");
 
     let scrape_state = footical_website::server::new_scrape_state();
 
@@ -64,14 +80,14 @@ async fn main() {
 
     tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let listener = tokio::net::TcpListener::bind(site_addr)
         .await
         .expect("failed to bind");
     tracing::event!(
         name: "server.started",
         tracing::Level::INFO,
-        server.address = "0.0.0.0",
-        server.port = 3000,
+        server.address = %site_addr.ip(),
+        server.port = site_addr.port(),
         "server listening on {{server.address}}:{{server.port}}",
     );
     axum::serve(listener, app.into_make_service())
@@ -81,7 +97,7 @@ async fn main() {
 
 #[cfg(feature = "ssr")]
 async fn run_scheduled_scrapes(
-    pool: sqlx::PgPool,
+    pool: sqlx::SqlitePool,
     scrape_state: footical_website::server::ScrapeStateHandle,
 ) {
     use chrono::{Local, NaiveTime};

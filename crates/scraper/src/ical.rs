@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 #[derive(sqlx::FromRow)]
 #[allow(dead_code)]
@@ -15,8 +15,8 @@ struct FixtureRow {
     venue_address: Option<String>,
 }
 
-pub async fn generate_for_team(pool: &PgPool, team_id: i32) -> anyhow::Result<Option<String>> {
-    let team_name: Option<String> = sqlx::query_scalar("SELECT name FROM team WHERE team_id = $1")
+pub async fn generate_for_team(pool: &SqlitePool, team_id: i32) -> anyhow::Result<Option<String>> {
+    let team_name: Option<String> = sqlx::query_scalar("SELECT name FROM team WHERE team_id = ?")
         .bind(team_id)
         .fetch_optional(pool)
         .await?;
@@ -43,7 +43,7 @@ pub async fn generate_for_team(pool: &PgPool, team_id: i32) -> anyhow::Result<Op
          JOIN division ON division.division_id = fixture.division_id
          JOIN league ON league.league_id = division.league_id
          LEFT JOIN venue ON venue.venue_id = league.venue_id
-         WHERE fixture.home_team_id = $1 OR fixture.away_team_id = $1
+         WHERE fixture.home_team_id = ?1 OR fixture.away_team_id = ?1
          ORDER BY fixture.scheduled_at",
     )
     .bind(team_id)

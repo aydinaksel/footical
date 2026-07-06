@@ -3,7 +3,7 @@ use leptos::prelude::*;
 
 #[server]
 pub async fn get_leagues() -> Result<Vec<League>, ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let rows = sqlx::query_as::<_, League>(
         "SELECT league_id, name FROM league ORDER BY name",
@@ -16,7 +16,7 @@ pub async fn get_leagues() -> Result<Vec<League>, ServerFnError> {
 
 #[server]
 pub async fn get_divisions() -> Result<Vec<Division>, ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let rows = sqlx::query_as::<_, Division>(
         "SELECT division_id, league_id, name FROM division ORDER BY league_id, name",
@@ -29,7 +29,7 @@ pub async fn get_divisions() -> Result<Vec<Division>, ServerFnError> {
 
 #[server]
 pub async fn get_teams() -> Result<Vec<Team>, ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let rows = sqlx::query_as::<_, Team>(
         "SELECT team_id, division_id, name FROM team ORDER BY division_id, name",
@@ -42,7 +42,7 @@ pub async fn get_teams() -> Result<Vec<Team>, ServerFnError> {
 
 #[server]
 pub async fn get_fixtures() -> Result<Vec<Fixture>, ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let rows = sqlx::query_as::<_, Fixture>(
         "SELECT
@@ -66,7 +66,7 @@ pub async fn get_fixtures() -> Result<Vec<Fixture>, ServerFnError> {
 
 #[server]
 pub async fn get_todays_fixtures() -> Result<Vec<TodayFixture>, ServerFnError> {
-    let pool = use_context::<sqlx::PgPool>()
+    let pool = use_context::<sqlx::SqlitePool>()
         .ok_or_else(|| ServerFnError::new("no database pool"))?;
     let rows = sqlx::query_as::<_, TodayFixture>(
         "SELECT
@@ -85,7 +85,7 @@ pub async fn get_todays_fixtures() -> Result<Vec<TodayFixture>, ServerFnError> {
          JOIN division ON division.division_id = fixture.division_id
          JOIN league ON league.league_id = division.league_id
          LEFT JOIN venue ON venue.venue_id = league.venue_id
-         WHERE fixture.scheduled_at::date = CURRENT_DATE
+         WHERE date(fixture.scheduled_at) = date('now', 'localtime')
          ORDER BY league.name, division.name, fixture.scheduled_at",
     )
     .fetch_all(&pool)

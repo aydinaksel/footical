@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 
 #[derive(Clone, axum::extract::FromRef)]
 pub struct AppState {
-    pub pool: sqlx::PgPool,
+    pub pool: sqlx::SqlitePool,
     pub leptos_options: leptos::prelude::LeptosOptions,
     pub scrape_state: ScrapeStateHandle,
 }

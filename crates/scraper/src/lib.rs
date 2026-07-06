@@ -5,7 +5,7 @@ mod parse;
 
 use std::collections::HashSet;
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use tracing::{Level, event};
 
 const BASE_URL: &str = "https://footballmundial.com";
@@ -21,7 +21,7 @@ pub struct ScrapeResult {
     pub duration_seconds: f64,
 }
 
-pub async fn run_scrape(pool: &PgPool) -> anyhow::Result<ScrapeResult> {
+pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
     let started_at = std::time::Instant::now();
     let fetcher = fetch::Fetcher::new()?;
 
