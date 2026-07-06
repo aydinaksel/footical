@@ -48,7 +48,7 @@
         nativeBuildInputs = [
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
-          pkgs.wasm-bindgen-cli
+          pkgs.wasm-bindgen-cli_0_2_114
           pkgs.binaryen
           pkgs.pkg-config
         ];
@@ -100,7 +100,7 @@
           rustToolchain
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
-          pkgs.wasm-bindgen-cli
+          pkgs.wasm-bindgen-cli_0_2_114
           pkgs.binaryen
           pkgs.pkg-config
         ];
