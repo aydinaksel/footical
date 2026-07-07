@@ -73,7 +73,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         let url = format!("{BASE_URL}/info/venues/{venue_key}");
         let html = fetcher.fetch(&url).await?;
         let venue = parse::parse_venue(&html);
-        ingest::upsert_venue(pool, venue_key, &venue.name, venue.address.as_deref()).await?;
+        ingest::upsert_venue(pool, &url, &venue.name, venue.address.as_deref()).await?;
         venues_upserted += 1;
 
         event!(
