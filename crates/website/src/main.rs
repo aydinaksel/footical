@@ -76,6 +76,7 @@ async fn main() {
             footical_website::server::AppState,
             _,
         >(footical_website::app::shell))
+        .layer(axum::middleware::map_request(rewrite_root_ical_path))
         .with_state(app_state);
 
     tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
@@ -187,6 +188,33 @@ async fn run_scheduled_scrapes(
             }
         }
     }
+}
+
+#[cfg(feature = "ssr")]
+async fn rewrite_root_ical_path(mut request: axum::extract::Request) -> axum::extract::Request {
+    use axum::http::uri::{PathAndQuery, Uri};
+
+    let path = request.uri().path();
+    if path.starts_with("/ical/") || !path.ends_with(".ics") {
+        return request;
+    }
+
+    let path_and_query = match request.uri().query() {
+        Some(query) => format!("/ical{path}?{query}"),
+        None => format!("/ical{path}"),
+    };
+
+    let Ok(path_and_query) = path_and_query.parse::<PathAndQuery>() else {
+        return request;
+    };
+
+    let mut parts = request.uri().clone().into_parts();
+    parts.path_and_query = Some(path_and_query);
+    if let Ok(uri) = Uri::from_parts(parts) {
+        *request.uri_mut() = uri;
+    }
+
+    request
 }
 
 #[cfg(not(feature = "ssr"))]
