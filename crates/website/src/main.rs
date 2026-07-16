@@ -55,7 +55,7 @@ async fn main() {
     };
 
     let app = Router::new()
-        .route("/ical/{filename}", axum::routing::get(footical_website::server::ical::handler))
+        .route("/ical/:filename", axum::routing::get(footical_website::server::ical::handler))
         .leptos_routes_with_context(
             &app_state,
             routes,
