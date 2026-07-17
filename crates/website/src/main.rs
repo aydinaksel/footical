@@ -54,7 +54,7 @@ async fn main() {
         scrape_state: scrape_state.clone(),
     };
 
-    let app = Router::new()
+    let site_router = Router::new()
         .route("/ical/:filename", axum::routing::get(footical_website::server::ical::handler))
         .leptos_routes_with_context(
             &app_state,
@@ -76,8 +76,11 @@ async fn main() {
             footical_website::server::AppState,
             _,
         >(footical_website::app::shell))
-        .layer(axum::middleware::map_request(rewrite_root_ical_path))
         .with_state(app_state);
+
+    let app = Router::new()
+        .fallback_service(site_router)
+        .layer(axum::middleware::from_fn(route_calendar_subdomain));
 
     tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
 
@@ -191,30 +194,60 @@ async fn run_scheduled_scrapes(
 }
 
 #[cfg(feature = "ssr")]
-async fn rewrite_root_ical_path(mut request: axum::extract::Request) -> axum::extract::Request {
+const CALENDAR_SUBDOMAIN: &str = "calendar.footical.club";
+
+#[cfg(feature = "ssr")]
+const MAIN_SITE_URL: &str = "https://footical.club";
+
+#[cfg(feature = "ssr")]
+async fn route_calendar_subdomain(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::{IntoResponse, Redirect};
+
+    let requested_host = request
+        .headers()
+        .get(axum::http::header::HOST)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.split(':').next().unwrap_or(value))
+        .unwrap_or_default();
+
+    if requested_host != CALENDAR_SUBDOMAIN {
+        return next.run(request).await;
+    }
+
+    let path = request.uri().path();
+    if path.starts_with("/ical/") {
+        return next.run(request).await;
+    }
+    if !path.ends_with(".ics") {
+        return Redirect::temporary(MAIN_SITE_URL).into_response();
+    }
+
+    match rewrite_to_feed_path(request) {
+        Some(request) => next.run(request).await,
+        None => Redirect::temporary(MAIN_SITE_URL).into_response(),
+    }
+}
+
+#[cfg(feature = "ssr")]
+fn rewrite_to_feed_path(mut request: axum::extract::Request) -> Option<axum::extract::Request> {
     use axum::http::uri::{PathAndQuery, Uri};
 
     let path = request.uri().path();
-    if path.starts_with("/ical/") || !path.ends_with(".ics") {
-        return request;
-    }
-
-    let path_and_query = match request.uri().query() {
+    let feed_path_and_query = match request.uri().query() {
         Some(query) => format!("/ical{path}?{query}"),
         None => format!("/ical{path}"),
     };
 
-    let Ok(path_and_query) = path_and_query.parse::<PathAndQuery>() else {
-        return request;
-    };
-
+    let feed_path_and_query = feed_path_and_query.parse::<PathAndQuery>().ok()?;
     let mut parts = request.uri().clone().into_parts();
-    parts.path_and_query = Some(path_and_query);
-    if let Ok(uri) = Uri::from_parts(parts) {
-        *request.uri_mut() = uri;
-    }
+    parts.path_and_query = Some(feed_path_and_query);
+    let uri = Uri::from_parts(parts).ok()?;
+    *request.uri_mut() = uri;
 
-    request
+    Some(request)
 }
 
 #[cfg(not(feature = "ssr"))]
