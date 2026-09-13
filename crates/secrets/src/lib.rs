@@ -56,6 +56,19 @@ fn find_access_token() -> Result<String, SecretsError> {
 }
 
 pub async fn inject_from_bws(secrets: &[(&str, &str)]) -> Result<(), SecretsError> {
+    if secrets
+        .iter()
+        .all(|(env_var, _)| std::env::var(env_var).is_ok())
+    {
+        event!(
+            name: "secrets.injection.skipped",
+            Level::INFO,
+            secrets.requested_count = secrets.len(),
+            "all {{secrets.requested_count}} secrets already in the environment",
+        );
+        return Ok(());
+    }
+
     let access_token = find_access_token()?;
 
     let client = Client::new(None);

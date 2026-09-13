@@ -177,9 +177,7 @@ pub fn AdminPage() -> impl IntoView {
     };
 
     let unauthenticated_redirect = move || {
-        let navigate = leptos_router::hooks::use_navigate();
-        navigate("/admin/login", Default::default());
-        view! { <p>"Redirecting…"</p> }.into_any()
+        view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any()
     };
 
     view! {

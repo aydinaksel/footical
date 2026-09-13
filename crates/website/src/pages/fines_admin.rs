@@ -39,12 +39,10 @@ pub fn FinesAdminPage() -> impl IntoView {
     view! {
         {move || match auth_resource.get() {
             Some(Ok(true)) => view! { <FinesAdminForms /> }.into_any(),
-            Some(_) => {
-                let navigate = leptos_router::hooks::use_navigate();
-                navigate("/admin/login", Default::default());
-                view! { <p class="text-sm text-gray-400 text-center py-16">"Redirecting…"</p> }
-                    .into_any()
+            Some(_) => view! {
+                <leptos_router::components::Redirect path="/admin/login" />
             }
+            .into_any(),
             None => view! {
                 <p class="text-sm text-gray-400 text-center py-16">"Checking auth…"</p>
             }
