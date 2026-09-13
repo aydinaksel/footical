@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-chichek-limited
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ship:
+    name: Ship to apollo
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - name: Update pin and deploy
+        run: |
+          set -euo pipefail
+
+          workdir="$(mktemp -d)"
+          trap 'rm -rf "$workdir"' EXIT
+          git clone git@github.com:chichek-limited/infrastructure.git "$workdir"
+          cd "$workdir"
+
+          nix flake update footical
+          if git diff --quiet -- flake.lock; then
+            echo "footical main unchanged; redeploying current pin"
+          else
+            git -c user.name='zeus runner' -c user.email='runner@zeus.local' \
+              commit -q -m "Deploy footical ${GITHUB_SHA::12} [skip ci]" -- flake.lock
+            git push -q origin HEAD:main
+          fi
+
+          nix run . -- .#apollo
