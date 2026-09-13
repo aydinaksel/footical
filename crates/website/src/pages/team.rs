@@ -132,7 +132,14 @@ fn fines_table(balances: Vec<PlayerBalance>) -> AnyView {
                             let is_settled = balance.fines_pence == 0;
                             view! {
                                 <tr>
-                                    <td class="px-6 py-2.5 text-gray-800">{balance.name}</td>
+                                    <td class="px-6 py-2.5">
+                                        <a
+                                            href=format!("/team/{}", balance.squad_player_id)
+                                            class="text-gray-800 hover:text-blue-600"
+                                        >
+                                            {balance.name}
+                                        </a>
+                                    </td>
                                     <td class="px-3 py-2.5 text-right text-gray-500 font-mono">
                                         {format_pence(balance.fines_pence)}
                                     </td>

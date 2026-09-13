@@ -94,6 +94,18 @@ pub fn format_pence(pence: i64) -> String {
     format!("{sign}£{pounds}.{remainder:02}")
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+pub struct LedgerEntry {
+    pub entry_id: i32,
+    pub is_payment: bool,
+    pub player_name: String,
+    pub description: String,
+    pub amount_pence: i64,
+    pub happened_on: String,
+    pub note: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::format_pence;

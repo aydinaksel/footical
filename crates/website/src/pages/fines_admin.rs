@@ -1,5 +1,8 @@
 use crate::server::auth::check_auth;
-use crate::server::squad::{get_fine_types, get_squad_players, record_fine, record_payment};
+use crate::server::squad::{
+    delete_entry, get_fine_types, get_recent_entries, get_squad_players, record_fine,
+    record_payment,
+};
 use crate::types::{FineType, SquadPlayer, format_pence};
 use leptos::prelude::*;
 
@@ -55,6 +58,7 @@ pub fn FinesAdminPage() -> impl IntoView {
 fn FinesAdminForms() -> impl IntoView {
     let players = Resource::new(|| (), |_| get_squad_players());
     let fine_types = Resource::new(|| (), |_| get_fine_types());
+    let ledger_version = RwSignal::new(0_u32);
 
     view! {
         <main class="flex justify-center p-4 pt-8">
@@ -78,11 +82,17 @@ fn FinesAdminForms() -> impl IntoView {
                         let squad = players.get().and_then(|result| result.ok())?;
                         let tariff = fine_types.get().and_then(|result| result.ok())?;
                         Some(view! {
-                            <RecordFineForm squad=squad.clone() tariff=tariff />
-                            <RecordPaymentForm squad=squad />
+                            <RecordFineForm
+                                squad=squad.clone()
+                                tariff=tariff
+                                ledger_version=ledger_version
+                            />
+                            <RecordPaymentForm squad=squad ledger_version=ledger_version />
                         }.into_any())
                     }}
                 </Suspense>
+
+                <RecentEntries ledger_version=ledger_version />
             </div>
         </main>
     }
@@ -90,7 +100,103 @@ fn FinesAdminForms() -> impl IntoView {
 }
 
 #[component]
-fn RecordFineForm(squad: Vec<SquadPlayer>, tariff: Vec<FineType>) -> impl IntoView {
+fn RecentEntries(ledger_version: RwSignal<u32>) -> impl IntoView {
+    let entries = Resource::new(move || ledger_version.get(), |_| get_recent_entries());
+    let delete_error = RwSignal::new(Option::<String>::None);
+
+    let on_delete = move |entry_id: i32, is_payment: bool| {
+        delete_error.set(None);
+        leptos::task::spawn_local(async move {
+            match delete_entry(entry_id, is_payment).await {
+                Ok(()) => ledger_version.update(|version| *version = version.wrapping_add(1)),
+                Err(error) => delete_error.set(Some(error.to_string())),
+            }
+        });
+    };
+
+    view! {
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <h2 class="font-bold text-gray-800">"Recent entries"</h2>
+            </div>
+            <Show when=move || delete_error.get().is_some()>
+                <p class="text-sm text-red-500 px-6 pt-3">
+                    {move || delete_error.get().unwrap_or_default()}
+                </p>
+            </Show>
+            <Transition fallback=move || view! {
+                <p class="text-sm text-gray-400 text-center py-8">"Loading…"</p>
+            }>
+                {move || {
+                    let recent = entries.get()?.ok()?;
+                    if recent.is_empty() {
+                        return Some(view! {
+                            <p class="text-sm text-gray-400 text-center py-8">
+                                "Nothing recorded yet."
+                            </p>
+                        }.into_any());
+                    }
+                    Some(view! {
+                        <ul class="divide-y divide-gray-50">
+                            <For
+                                each=move || recent.clone()
+                                key=|entry| (entry.is_payment, entry.entry_id)
+                                children=move |entry| {
+                                    let entry_id = entry.entry_id;
+                                    let is_payment = entry.is_payment;
+                                    let note = entry.note.clone().unwrap_or_default();
+                                    view! {
+                                        <li class="px-6 py-3 flex items-center justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <p class="text-sm text-gray-800 truncate">
+                                                    {entry.player_name}
+                                                </p>
+                                                <p class="text-xs text-gray-400 mt-0.5 truncate">
+                                                    {entry.description}
+                                                    " · "
+                                                    {entry.happened_on}
+                                                    {if note.is_empty() {
+                                                        String::new()
+                                                    } else {
+                                                        format!(" · {note}")
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <div class="flex items-center gap-3 shrink-0">
+                                                <span class=if is_payment {
+                                                    "font-mono text-sm text-green-600"
+                                                } else {
+                                                    "font-mono text-sm text-gray-800"
+                                                }>
+                                                    {format_pence(entry.amount_pence)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    class="text-xs text-gray-400 hover:text-red-600 cursor-pointer"
+                                                    on:click=move |_| on_delete(entry_id, is_payment)
+                                                >
+                                                    "Undo"
+                                                </button>
+                                            </div>
+                                        </li>
+                                    }.into_any()
+                                }
+                            />
+                        </ul>
+                    }.into_any())
+                }}
+            </Transition>
+        </div>
+    }
+    .into_any()
+}
+
+#[component]
+fn RecordFineForm(
+    squad: Vec<SquadPlayer>,
+    tariff: Vec<FineType>,
+    ledger_version: RwSignal<u32>,
+) -> impl IntoView {
     let selected_player = RwSignal::new(String::new());
     let selected_fine_type = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
@@ -120,6 +226,7 @@ fn RecordFineForm(squad: Vec<SquadPlayer>, tariff: Vec<FineType>) -> impl IntoVi
                 Ok(()) => {
                     is_error.set(false);
                     feedback.set(Some("Fine recorded.".to_owned()));
+                    ledger_version.update(|version| *version = version.wrapping_add(1));
                     note.set(String::new());
                 }
                 Err(error) => {
@@ -185,7 +292,7 @@ fn RecordFineForm(squad: Vec<SquadPlayer>, tariff: Vec<FineType>) -> impl IntoVi
 }
 
 #[component]
-fn RecordPaymentForm(squad: Vec<SquadPlayer>) -> impl IntoView {
+fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> impl IntoView {
     let selected_player = RwSignal::new(String::new());
     let amount_text = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
@@ -220,6 +327,7 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>) -> impl IntoView {
                 Ok(()) => {
                     is_error.set(false);
                     feedback.set(Some(format!("Recorded {}.", format_pence(amount_pence))));
+                    ledger_version.update(|version| *version = version.wrapping_add(1));
                     amount_text.set(String::new());
                     note.set(String::new());
                 }

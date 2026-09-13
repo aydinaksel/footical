@@ -8,6 +8,7 @@ use crate::pages::fines_admin::FinesAdminPage;
 use crate::pages::fixtures::FixturesPage;
 use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
+use crate::pages::player::PlayerPage;
 use crate::pages::team::TeamPage;
 use crate::pages::today::TodayPage;
 #[cfg(feature = "hydrate")]
@@ -77,6 +78,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/fixtures") view=FixturesPage />
                     <Route path=path!("/today") view=TodayPage />
                     <Route path=path!("/team") view=TeamPage />
+                    <Route path=path!("/team/:id") view=PlayerPage />
                     <Route path=path!("/admin/fines") view=FinesAdminPage />
                     <Route path=path!("/admin/login") view=LoginPage />
                     <Route path=path!("/admin") view=AdminPage />
