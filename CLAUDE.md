@@ -3,13 +3,21 @@
 ## Deploy
 
 Runs on `apollo` as a flake input of `~/Projects/chichek-infrastructure`.
-Pushing to `main` is the deploy: `.github/workflows/deploy.yml` re-locks the
-pin in that repo and activates apollo from a self-hosted runner.
+This repo is on a personal account with no self-hosted runner, so the deploy
+is manual: push, then re-lock the pin and activate.
+
+```sh
+cd ~/Projects/chichek-infrastructure
+nix flake update footical    # re-lock to main HEAD
+nix run . -- .#apollo
+```
+
+Pushing to `chichek-infrastructure` main also deploys apollo on its own
+runner, so committing the re-locked `flake.lock` is enough on its own.
 
 Roll back a bad commit by pinning a good SHA instead of tracking `main`:
 
 ```sh
-cd ~/Projects/chichek-infrastructure
 nix flake lock --override-input footical "git+https://github.com/aydinaksel/footical?rev=<good-sha>"
 nix run . -- .#apollo
 ```
