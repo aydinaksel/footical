@@ -24,7 +24,7 @@ pub fn PlayerPage() -> impl IntoView {
     view! {
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-lg space-y-6">
-                <a href="/team" class="text-sm text-blue-600 hover:text-blue-700 inline-block">
+                <a href="/team/fines" class="text-sm text-blue-600 hover:text-blue-700 inline-block">
                     "← Back to team"
                 </a>
 

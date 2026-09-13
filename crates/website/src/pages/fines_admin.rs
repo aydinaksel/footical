@@ -3,6 +3,8 @@ use crate::server::squad::{
     delete_entry, get_fine_types, get_recent_entries, get_squad_players, record_fine,
     record_payment,
 };
+use crate::components::searchable_select::{SearchableSelect, SelectOption};
+use crate::components::toast::use_toaster;
 use crate::types::{FineType, SquadPlayer, format_pence};
 use leptos::prelude::*;
 
@@ -68,7 +70,7 @@ fn FinesAdminForms() -> impl IntoView {
                         </p>
                         <h1 class="text-xl font-bold text-gray-800 mt-0.5">"Fines & Payments"</h1>
                     </div>
-                    <a href="/team" class="text-sm text-blue-600 hover:text-blue-700">
+                    <a href="/team/fines" class="text-sm text-blue-600 hover:text-blue-700">
                         "View summary"
                     </a>
                 </div>
@@ -195,25 +197,46 @@ fn RecordFineForm(
     tariff: Vec<FineType>,
     ledger_version: RwSignal<u32>,
 ) -> impl IntoView {
-    let selected_player = RwSignal::new(String::new());
-    let selected_fine_type = RwSignal::new(String::new());
+    let toaster = use_toaster();
+    let selected_player = RwSignal::new(Option::<i32>::None);
+    let selected_fine_type = RwSignal::new(Option::<i32>::None);
     let note = RwSignal::new(String::new());
-    let feedback = RwSignal::new(Option::<String>::None);
-    let is_error = RwSignal::new(false);
     let is_saving = RwSignal::new(false);
+    let reset_fields = RwSignal::new(0_u32);
+
+    let player_options: Vec<SelectOption> = squad
+        .into_iter()
+        .map(|player| SelectOption {
+            value: player.squad_player_id,
+            label: player.name,
+        })
+        .collect();
+
+    let fine_options: Vec<SelectOption> = tariff
+        .into_iter()
+        .map(|fine_type| SelectOption {
+            value: fine_type.fine_type_id,
+            label: format!(
+                "{} — {}",
+                fine_type.name,
+                format_pence(fine_type.default_amount_pence),
+            ),
+        })
+        .collect();
 
     let on_submit = move |event: leptos::ev::SubmitEvent| {
         event.prevent_default();
-        feedback.set(None);
 
-        let Ok(squad_player_id) = selected_player.get().parse::<i32>() else {
-            is_error.set(true);
-            feedback.set(Some("Pick a player.".to_owned()));
+        let Some(squad_player_id) = selected_player.get() else {
+            if let Some(toaster) = toaster {
+                toaster.show_error("Pick a player.");
+            }
             return;
         };
-        let Ok(fine_type_id) = selected_fine_type.get().parse::<i32>() else {
-            is_error.set(true);
-            feedback.set(Some("Pick a fine.".to_owned()));
+        let Some(fine_type_id) = selected_fine_type.get() else {
+            if let Some(toaster) = toaster {
+                toaster.show_error("Pick a fine.");
+            }
             return;
         };
 
@@ -222,14 +245,19 @@ fn RecordFineForm(
         leptos::task::spawn_local(async move {
             match record_fine(squad_player_id, fine_type_id, note_value).await {
                 Ok(()) => {
-                    is_error.set(false);
-                    feedback.set(Some("Fine recorded.".to_owned()));
-                    ledger_version.update(|version| *version = version.wrapping_add(1));
+                    if let Some(toaster) = toaster {
+                        toaster.show("Fine recorded");
+                    }
                     note.set(String::new());
+                    selected_player.set(None);
+                    selected_fine_type.set(None);
+                    reset_fields.update(|generation| *generation = generation.wrapping_add(1));
+                    ledger_version.update(|version| *version = version.wrapping_add(1));
                 }
                 Err(error) => {
-                    is_error.set(true);
-                    feedback.set(Some(error.to_string()));
+                    if let Some(toaster) = toaster {
+                        toaster.show_error(error.to_string());
+                    }
                 }
             }
             is_saving.set(false);
@@ -240,32 +268,19 @@ fn RecordFineForm(
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a fine"</h2>
 
-            <select
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                on:change=move |event| selected_player.set(event_target_value(&event))
-            >
-                <option value="">"Select player…"</option>
-                {squad.into_iter().map(|player| view! {
-                    <option value=player.squad_player_id.to_string()>{player.name}</option>
-                }.into_any()).collect_view()}
-            </select>
+            <SearchableSelect
+                options=player_options
+                placeholder="Search players…"
+                selected=selected_player
+                reset=reset_fields
+            />
 
-            <select
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                on:change=move |event| selected_fine_type.set(event_target_value(&event))
-            >
-                <option value="">"Select fine…"</option>
-                {tariff.into_iter().map(|fine_type| {
-                    let label = format!(
-                        "{} — {}",
-                        fine_type.name,
-                        format_pence(fine_type.default_amount_pence),
-                    );
-                    view! {
-                        <option value=fine_type.fine_type_id.to_string()>{label}</option>
-                    }.into_any()
-                }).collect_view()}
-            </select>
+            <SearchableSelect
+                options=fine_options
+                placeholder="Search fines…"
+                selected=selected_fine_type
+                reset=reset_fields
+            />
 
             <input
                 type="text"
@@ -274,8 +289,6 @@ fn RecordFineForm(
                 on:input=move |event| note.set(event_target_value(&event))
                 class="w-full border border-gray-300 rounded-lg px-3 py-2"
             />
-
-            <Feedback feedback=feedback is_error=is_error />
 
             <button
                 type="submit"
@@ -291,30 +304,40 @@ fn RecordFineForm(
 
 #[component]
 fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> impl IntoView {
-    let selected_player = RwSignal::new(String::new());
+    let toaster = use_toaster();
+    let selected_player = RwSignal::new(Option::<i32>::None);
     let amount_text = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
-    let feedback = RwSignal::new(Option::<String>::None);
-    let is_error = RwSignal::new(false);
     let is_saving = RwSignal::new(false);
+    let reset_fields = RwSignal::new(0_u32);
+
+    let player_options: Vec<SelectOption> = squad
+        .into_iter()
+        .map(|player| SelectOption {
+            value: player.squad_player_id,
+            label: player.name,
+        })
+        .collect();
 
     let on_submit = move |event: leptos::ev::SubmitEvent| {
         event.prevent_default();
-        feedback.set(None);
 
-        let Ok(squad_player_id) = selected_player.get().parse::<i32>() else {
-            is_error.set(true);
-            feedback.set(Some("Pick a player.".to_owned()));
+        let Some(squad_player_id) = selected_player.get() else {
+            if let Some(toaster) = toaster {
+                toaster.show_error("Pick a player.");
+            }
             return;
         };
         let Some(amount_pence) = parse_pounds_to_pence(&amount_text.get()) else {
-            is_error.set(true);
-            feedback.set(Some("Amount must look like 5 or 5.50.".to_owned()));
+            if let Some(toaster) = toaster {
+                toaster.show_error("Amount must look like 5 or 5.50.");
+            }
             return;
         };
         if amount_pence == 0 {
-            is_error.set(true);
-            feedback.set(Some("Amount must be more than zero.".to_owned()));
+            if let Some(toaster) = toaster {
+                toaster.show_error("Amount must be more than zero.");
+            }
             return;
         }
 
@@ -323,15 +346,19 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
         leptos::task::spawn_local(async move {
             match record_payment(squad_player_id, amount_pence, note_value).await {
                 Ok(()) => {
-                    is_error.set(false);
-                    feedback.set(Some(format!("Recorded {}.", format_pence(amount_pence))));
-                    ledger_version.update(|version| *version = version.wrapping_add(1));
+                    if let Some(toaster) = toaster {
+                        toaster.show(format!("Payment of {} recorded", format_pence(amount_pence)));
+                    }
                     amount_text.set(String::new());
+                    reset_fields.update(|generation| *generation = generation.wrapping_add(1));
                     note.set(String::new());
+                    selected_player.set(None);
+                    ledger_version.update(|version| *version = version.wrapping_add(1));
                 }
                 Err(error) => {
-                    is_error.set(true);
-                    feedback.set(Some(error.to_string()));
+                    if let Some(toaster) = toaster {
+                        toaster.show_error(error.to_string());
+                    }
                 }
             }
             is_saving.set(false);
@@ -342,15 +369,12 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a payment"</h2>
 
-            <select
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                on:change=move |event| selected_player.set(event_target_value(&event))
-            >
-                <option value="">"Select player…"</option>
-                {squad.into_iter().map(|player| view! {
-                    <option value=player.squad_player_id.to_string()>{player.name}</option>
-                }.into_any()).collect_view()}
-            </select>
+            <SearchableSelect
+                options=player_options
+                placeholder="Search players…"
+                selected=selected_player
+                reset=reset_fields
+            />
 
             <div>
                 <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -374,8 +398,6 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
                 class="w-full border border-gray-300 rounded-lg px-3 py-2"
             />
 
-            <Feedback feedback=feedback is_error=is_error />
-
             <button
                 type="submit"
                 disabled=move || is_saving.get()
@@ -388,21 +410,6 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
     .into_any()
 }
 
-#[component]
-fn Feedback(feedback: RwSignal<Option<String>>, is_error: RwSignal<bool>) -> impl IntoView {
-    view! {
-        <Show when=move || feedback.get().is_some()>
-            <p class=move || if is_error.get() {
-                "text-sm text-red-500"
-            } else {
-                "text-sm text-green-600"
-            }>
-                {move || feedback.get().unwrap_or_default()}
-            </p>
-        </Show>
-    }
-    .into_any()
-}
 
 #[cfg(test)]
 mod tests {

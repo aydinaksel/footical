@@ -74,12 +74,17 @@ pub fn AdminPage() -> impl IntoView {
                                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">"Admin"</p>
                                 <h1 class="text-xl font-bold text-gray-800 mt-0.5">"Scraper Dashboard"</h1>
                             </div>
-                            <button
-                                class="text-sm text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                                on:click=on_logout
-                            >
-                                "Logout"
-                            </button>
+                            <div class="flex items-center gap-4">
+                                <a href="/admin/fines" class="text-sm text-blue-600 hover:text-blue-700">
+                                    "Fines"
+                                </a>
+                                <button
+                                    class="text-sm text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                    on:click=on_logout
+                                >
+                                    "Logout"
+                                </button>
+                            </div>
                         </div>
 
                         <div class="px-6 py-5 border-b border-gray-100">

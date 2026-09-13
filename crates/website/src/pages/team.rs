@@ -1,13 +1,24 @@
 use crate::server::squad::{get_player_balances, get_squad_fixtures};
 use crate::types::{PlayerBalance, SquadFixture, format_pence};
 use leptos::prelude::*;
+use leptos_router::components::A;
+use leptos_router::hooks::use_location;
 
 const TEAM_NAME: &str = "Wigginton Grasshoppers Reserves";
 
 #[component]
-pub fn TeamPage() -> impl IntoView {
-    let fixtures = Resource::new(|| (), |_| get_squad_fixtures());
-    let balances = Resource::new(|| (), |_| get_player_balances());
+pub fn TeamLayout(children: ChildrenFn) -> impl IntoView {
+    let location = use_location();
+
+    let tab_class = move |path: &'static str| {
+        move || {
+            if location.pathname.get() == path {
+                "pb-2 border-b-2 border-blue-600 text-blue-600 font-medium text-sm"
+            } else {
+                "pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 text-sm"
+            }
+        }
+    };
 
     view! {
         <main class="flex justify-center p-4 pt-8">
@@ -17,33 +28,64 @@ pub fn TeamPage() -> impl IntoView {
                     <p class="text-sm text-gray-500 mt-1">"York Football League"</p>
                 </div>
 
-                <Suspense fallback=move || view! {
-                    <p class="text-sm text-gray-400 py-8 text-center">"Loading fixtures…"</p>
-                }>
-                    {move || fixtures.get().map(|result| match result {
-                        Err(_) => view! {
-                            <p class="text-sm text-red-500 py-8 text-center">
-                                "Failed to load fixtures."
-                            </p>
-                        }.into_any(),
-                        Ok(fixtures) => fixture_list(fixtures),
-                    })}
-                </Suspense>
+                <nav class="flex gap-6 border-b border-gray-200">
+                    <A href="/team/fixtures">
+                        <span class=tab_class("/team/fixtures")>"Fixtures"</span>
+                    </A>
+                    <A href="/team/fines">
+                        <span class=tab_class("/team/fines")>"Fines"</span>
+                    </A>
+                </nav>
 
-                <Suspense fallback=move || view! {
-                    <p class="text-sm text-gray-400 py-8 text-center">"Loading fines…"</p>
-                }>
-                    {move || balances.get().map(|result| match result {
-                        Err(_) => view! {
-                            <p class="text-sm text-red-500 py-8 text-center">
-                                "Failed to load fines."
-                            </p>
-                        }.into_any(),
-                        Ok(balances) => fines_table(balances),
-                    })}
-                </Suspense>
+                {children()}
             </div>
         </main>
+    }
+    .into_any()
+}
+
+#[component]
+pub fn TeamFixturesPage() -> impl IntoView {
+    let fixtures = Resource::new(|| (), |_| get_squad_fixtures());
+
+    view! {
+        <TeamLayout>
+            <Suspense fallback=move || view! {
+                <p class="text-sm text-gray-400 py-8 text-center">"Loading fixtures…"</p>
+            }>
+                {move || fixtures.get().map(|result| match result {
+                    Err(_) => view! {
+                        <p class="text-sm text-red-500 py-8 text-center">
+                            "Failed to load fixtures."
+                        </p>
+                    }.into_any(),
+                    Ok(fixtures) => fixture_list(fixtures),
+                })}
+            </Suspense>
+        </TeamLayout>
+    }
+    .into_any()
+}
+
+#[component]
+pub fn TeamFinesPage() -> impl IntoView {
+    let balances = Resource::new(|| (), |_| get_player_balances());
+
+    view! {
+        <TeamLayout>
+            <Suspense fallback=move || view! {
+                <p class="text-sm text-gray-400 py-8 text-center">"Loading fines…"</p>
+            }>
+                {move || balances.get().map(|result| match result {
+                    Err(_) => view! {
+                        <p class="text-sm text-red-500 py-8 text-center">
+                            "Failed to load fines."
+                        </p>
+                    }.into_any(),
+                    Ok(balances) => fines_table(balances),
+                })}
+            </Suspense>
+        </TeamLayout>
     }
     .into_any()
 }
@@ -60,9 +102,6 @@ fn fixture_list(fixtures: Vec<SquadFixture>) -> AnyView {
 
     view! {
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
-                <h2 class="font-bold text-gray-800">"Fixtures"</h2>
-            </div>
             <ul class="divide-y divide-gray-100">
                 {fixtures.into_iter().map(|fixture| {
                     let date_label = fixture.kicks_off_at.format("%a %-d %b").to_string();
@@ -134,7 +173,7 @@ fn fines_table(balances: Vec<PlayerBalance>) -> AnyView {
                                 <tr>
                                     <td class="px-6 py-2.5">
                                         <a
-                                            href=format!("/team/{}", balance.squad_player_id)
+                                            href=format!("/team/player/{}", balance.squad_player_id)
                                             class="text-gray-800 hover:text-blue-600"
                                         >
                                             {balance.name}

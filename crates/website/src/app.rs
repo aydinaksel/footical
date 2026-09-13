@@ -3,13 +3,14 @@ use leptos_router::components::{Route, Router, Routes};
 use leptos_router::path;
 
 use crate::components::header::Header;
+use crate::components::toast::ToastHost;
 use crate::pages::admin::AdminPage;
 use crate::pages::fines_admin::FinesAdminPage;
 use crate::pages::fixtures::FixturesPage;
 use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
 use crate::pages::player::PlayerPage;
-use crate::pages::team::TeamPage;
+use crate::pages::team::{TeamFinesPage, TeamFixturesPage};
 use crate::pages::today::TodayPage;
 #[cfg(feature = "hydrate")]
 use crate::server::data::{get_divisions, get_fixtures, get_leagues, get_teams};
@@ -71,19 +72,23 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Router>
+            <ToastHost>
             <div class="min-h-screen bg-gray-50">
                 <Header />
                 <Routes fallback=|| "Page not found">
                     <Route path=path!("/") view=Home />
                     <Route path=path!("/fixtures") view=FixturesPage />
                     <Route path=path!("/today") view=TodayPage />
-                    <Route path=path!("/team") view=TeamPage />
-                    <Route path=path!("/team/:id") view=PlayerPage />
+                    <Route path=path!("/team") view=|| view! { <leptos_router::components::Redirect path="/team/fixtures" /> } />
+                    <Route path=path!("/team/fixtures") view=TeamFixturesPage />
+                    <Route path=path!("/team/fines") view=TeamFinesPage />
+                    <Route path=path!("/team/player/:id") view=PlayerPage />
                     <Route path=path!("/admin/fines") view=FinesAdminPage />
                     <Route path=path!("/admin/login") view=LoginPage />
                     <Route path=path!("/admin") view=AdminPage />
                 </Routes>
             </div>
+            </ToastHost>
         </Router>
     }
     .into_any()
