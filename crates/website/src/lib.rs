@@ -1,9 +1,8 @@
 pub mod app;
-#[cfg(feature = "hydrate")]
-mod clipboard;
 mod components;
 mod pages;
 pub mod server;
+mod tracked_team;
 mod types;
 
 #[cfg(feature = "hydrate")]

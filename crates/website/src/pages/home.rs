@@ -1,13 +1,23 @@
 use crate::components::team_picker::TeamPicker;
-use crate::types::{Team, clear_tracked_team_id};
+use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::types::Team;
 use leptos::prelude::*;
+use leptos_use::{UseClipboardReturn, use_clipboard};
 
 #[component]
 pub fn Home() -> impl IntoView {
-    let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
-    let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
-    let is_data_loaded = use_context::<RwSignal<bool>>().expect("is_data_loaded context");
-    let is_copied = RwSignal::new(false);
+    let all_teams = use_context::<RwSignal<Vec<Team>>>().unwrap_or_default();
+    let is_data_loaded = use_context::<RwSignal<bool>>().unwrap_or_default();
+    let TrackedTeam {
+        team_id: tracked_team_id,
+        set_team_id,
+    } = use_tracked_team();
+    let UseClipboardReturn {
+        copied: is_copied,
+        copy: copy_to_clipboard,
+        ..
+    } = use_clipboard();
+    let copy_to_clipboard = StoredValue::new(copy_to_clipboard);
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
@@ -37,27 +47,14 @@ pub fn Home() -> impl IntoView {
     });
 
     let on_change_team = move |_: leptos::ev::MouseEvent| {
-        clear_tracked_team_id();
-        tracked_team_id.set(None);
+        set_team_id.set(None);
     };
 
-    #[cfg(feature = "hydrate")]
     let on_copy_click = move |_: leptos::ev::MouseEvent| {
         if let Some(url) = calendar_url.get() {
-            wasm_bindgen_futures::spawn_local(async move {
-                if crate::clipboard::copy_to_clipboard(&url).await {
-                    is_copied.set(true);
-                    let reset_timeout = gloo_timers::callback::Timeout::new(1500, move || {
-                        is_copied.set(false);
-                    });
-                    reset_timeout.forget();
-                }
-            });
+            copy_to_clipboard.with_value(|copy| copy(&url));
         }
     };
-
-    #[cfg(not(feature = "hydrate"))]
-    let on_copy_click = move |_: leptos::ev::MouseEvent| {};
 
     view! {
         <main class="flex justify-center p-4 pt-8">

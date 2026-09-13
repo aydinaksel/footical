@@ -77,13 +77,13 @@ pub fn TodayPage() -> impl IntoView {
                                                                             </span>
                                                                         })}
                                                                     </li>
-                                                                }
+                                                                }.into_any()
                                                             }).collect_view()}
                                                         </ul>
                                                     </div>
-                                                }).collect_view()}
+                                                }.into_any()).collect_view()}
                                             </div>
-                                        }).collect_view()}
+                                        }.into_any()).collect_view()}
                                     </div>
                                 }.into_any()
                             }

@@ -10,7 +10,8 @@ use crate::pages::login::LoginPage;
 use crate::pages::today::TodayPage;
 #[cfg(feature = "hydrate")]
 use crate::server::data::{get_divisions, get_fixtures, get_leagues, get_teams};
-use crate::types::{Division, Fixture, League, Team, read_tracked_team_id};
+use crate::tracked_team::provide_tracked_team;
+use crate::types::{Division, Fixture, League, Team};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -37,7 +38,6 @@ pub fn App() -> impl IntoView {
     let all_divisions: RwSignal<Vec<Division>> = RwSignal::new(vec![]);
     let all_teams: RwSignal<Vec<Team>> = RwSignal::new(vec![]);
     let all_fixtures: RwSignal<Vec<Fixture>> = RwSignal::new(vec![]);
-    let tracked_team_id: RwSignal<Option<i32>> = RwSignal::new(read_tracked_team_id());
     let is_data_loaded: RwSignal<bool> = RwSignal::new(false);
 
     #[cfg(feature = "hydrate")]
@@ -63,7 +63,7 @@ pub fn App() -> impl IntoView {
     provide_context(all_divisions);
     provide_context(all_teams);
     provide_context(all_fixtures);
-    provide_context(tracked_team_id);
+    provide_tracked_team();
     provide_context(is_data_loaded);
 
     view! {

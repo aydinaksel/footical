@@ -1,5 +1,7 @@
-use crate::types::{Division, League, Team, save_tracked_team_id};
+use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::types::{Division, League, Team};
 use leptos::prelude::*;
+use leptos_use::on_click_outside;
 
 #[derive(Clone, PartialEq)]
 struct TeamOption {
@@ -11,10 +13,10 @@ struct TeamOption {
 
 #[component]
 pub fn TeamPicker() -> impl IntoView {
-    let all_leagues = use_context::<RwSignal<Vec<League>>>().expect("all_leagues context");
-    let all_divisions = use_context::<RwSignal<Vec<Division>>>().expect("all_divisions context");
-    let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
-    let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
+    let all_leagues = use_context::<RwSignal<Vec<League>>>().unwrap_or_default();
+    let all_divisions = use_context::<RwSignal<Vec<Division>>>().unwrap_or_default();
+    let all_teams = use_context::<RwSignal<Vec<Team>>>().unwrap_or_default();
+    let TrackedTeam { set_team_id, .. } = use_tracked_team();
 
     let query = RwSignal::new(String::new());
     let is_open = RwSignal::new(false);
@@ -50,8 +52,11 @@ pub fn TeamPicker() -> impl IntoView {
             .collect()
     });
 
+    let container = NodeRef::<leptos::html::Div>::new();
+    let _stop_click_outside = on_click_outside(container, move |_| is_open.set(false));
+
     view! {
-        <div class="relative">
+        <div class="relative" node_ref=container>
             <input
                 type="text"
                 placeholder="Search for your team…"
@@ -65,7 +70,6 @@ pub fn TeamPicker() -> impl IntoView {
                         is_open.set(true);
                     }
                 }
-                on:blur=move |_| is_open.set(false)
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {move || {
@@ -89,12 +93,9 @@ pub fn TeamPicker() -> impl IntoView {
                                     <li>
                                         <button
                                             type="button"
-                                            tabindex="-1"
                                             class="w-full text-left px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
-                                            on:mousedown=|ev| ev.prevent_default()
                                             on:click=move |_| {
-                                                save_tracked_team_id(team_id);
-                                                tracked_team_id.set(Some(team_id));
+                                                set_team_id.set(Some(team_id));
                                                 query.set(team_name.clone());
                                                 is_open.set(false);
                                             }

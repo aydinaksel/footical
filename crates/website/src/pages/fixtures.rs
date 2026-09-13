@@ -1,13 +1,14 @@
 use crate::components::team_picker::TeamPicker;
-use crate::types::{Fixture, Team, clear_tracked_team_id};
+use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::types::{Fixture, Team};
 use leptos::prelude::*;
 
 #[component]
 pub fn FixturesPage() -> impl IntoView {
-    let all_teams = use_context::<RwSignal<Vec<Team>>>().expect("all_teams context");
-    let all_fixtures = use_context::<RwSignal<Vec<Fixture>>>().expect("all_fixtures context");
-    let tracked_team_id = use_context::<RwSignal<Option<i32>>>().expect("tracked_team_id context");
-    let is_data_loaded = use_context::<RwSignal<bool>>().expect("is_data_loaded context");
+    let all_teams = use_context::<RwSignal<Vec<Team>>>().unwrap_or_default();
+    let all_fixtures = use_context::<RwSignal<Vec<Fixture>>>().unwrap_or_default();
+    let TrackedTeam { team_id: tracked_team_id, set_team_id } = use_tracked_team();
+    let is_data_loaded = use_context::<RwSignal<bool>>().unwrap_or_default();
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
@@ -31,8 +32,7 @@ pub fn FixturesPage() -> impl IntoView {
     });
 
     let on_change_team = move |_: leptos::ev::MouseEvent| {
-        clear_tracked_team_id();
-        tracked_team_id.set(None);
+        set_team_id.set(None);
     };
 
     view! {
