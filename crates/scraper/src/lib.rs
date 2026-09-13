@@ -33,7 +33,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
     );
 
     let find_league_html = fetcher.fetch(&format!("{BASE_URL}/find_league")).await?;
-    let league_group_paths = parse::parse_league_group_ids(&find_league_html);
+    let league_group_paths = parse::parse_league_group_ids(&find_league_html)?;
 
     event!(
         name: "scrape.league_groups.discovered",
@@ -54,7 +54,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         event!(
             name: "scrape.league_group.fetched",
             Level::INFO,
-            scrape.league_group.index = index + 1,
+            scrape.league_group.index = index.saturating_add(1),
             scrape.league_group.total = league_group_count,
             scrape.league_group.name = league_group.league_group_name,
             "fetched league group {{scrape.league_group.index}}/{{scrape.league_group.total}}: {{scrape.league_group.name}}",
@@ -67,14 +67,14 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         all_league_groups.push(league_group);
     }
 
-    let mut venues_upserted = 0;
+    let mut venues_upserted: usize = 0;
     let venue_count = all_venue_source_keys.len();
     for venue_key in &all_venue_source_keys {
         let url = format!("{BASE_URL}/info/venues/{venue_key}");
         let html = fetcher.fetch(&url).await?;
-        let venue = parse::parse_venue(&html);
+        let venue = parse::parse_venue(&html)?;
         ingest::upsert_venue(pool, &url, &venue.name, venue.address.as_deref()).await?;
-        venues_upserted += 1;
+        venues_upserted = venues_upserted.saturating_add(1);
 
         event!(
             name: "scrape.venue.upserted",
@@ -86,8 +86,8 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         );
     }
 
-    let mut leagues_upserted = 0;
-    let mut divisions_upserted = 0;
+    let mut leagues_upserted: usize = 0;
+    let mut divisions_upserted: usize = 0;
     let mut all_league_ids_with_division_source_key: Vec<(String, String)> = Vec::new();
 
     for league_group in &all_league_groups {
@@ -111,7 +111,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
             &venue_endpoint,
         )
         .await?;
-        leagues_upserted += 1;
+        leagues_upserted = leagues_upserted.saturating_add(1);
 
         for league_endpoint in &league_group.league_endpoints {
             let division_source_key =
@@ -123,7 +123,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
 
             ingest::upsert_division(pool, division_name, &division_source_key, &league_source_key)
                 .await?;
-            divisions_upserted += 1;
+            divisions_upserted = divisions_upserted.saturating_add(1);
 
             all_league_ids_with_division_source_key
                 .push((league_endpoint.league_id.clone(), division_source_key));
@@ -138,8 +138,8 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         "upserted {{scrape.leagues.count}} leagues and {{scrape.divisions.count}} divisions",
     );
 
-    let mut teams_upserted = 0;
-    let mut fixtures_upserted = 0;
+    let mut teams_upserted: usize = 0;
+    let mut fixtures_upserted: usize = 0;
     let mut stale_fixtures_deleted: u64 = 0;
     let division_count = all_league_ids_with_division_source_key.len();
 
@@ -148,12 +148,12 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
     {
         let url = format!("{BASE_URL}/info/leagues/{league_id}");
         let html = fetcher.fetch(&url).await?;
-        let fixture_data = parse::parse_league_fixtures(&html, league_id);
+        let fixture_data = parse::parse_league_fixtures(&html, league_id)?;
 
         event!(
             name: "scrape.division_fixtures.fetched",
             Level::INFO,
-            scrape.division.index = division_index + 1,
+            scrape.division.index = division_index.saturating_add(1),
             scrape.division.total = division_count,
             scrape.division.fixtures_count = fixture_data.len(),
             "fetched division fixtures {{scrape.division.index}}/{{scrape.division.total}}: {{scrape.division.fixtures_count}} fixtures",
@@ -187,8 +187,8 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
             .await?;
 
             active_fixture_source_keys.push(fixture_source_key);
-            teams_upserted += 2;
-            fixtures_upserted += 1;
+            teams_upserted = teams_upserted.saturating_add(2);
+            fixtures_upserted = fixtures_upserted.saturating_add(1);
         }
 
         let stale_deleted = ingest::delete_stale_fixtures(
@@ -198,7 +198,7 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         )
         .await?;
 
-        stale_fixtures_deleted += stale_deleted;
+        stale_fixtures_deleted = stale_fixtures_deleted.saturating_add(stale_deleted);
 
         if stale_deleted > 0 {
             event!(

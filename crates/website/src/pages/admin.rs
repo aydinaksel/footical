@@ -1,6 +1,7 @@
 use crate::server::auth::{check_auth, logout};
 use crate::server::scraper::{ScrapeStatus, get_scrape_status, trigger_scrape};
 use leptos::prelude::*;
+use tracing::{Level, event};
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
@@ -50,7 +51,14 @@ pub fn AdminPage() -> impl IntoView {
 
     let on_logout = move |_: leptos::ev::MouseEvent| {
         leptos::task::spawn_local(async move {
-            let _ = logout().await;
+            if let Err(error) = logout().await {
+                event!(
+                    name: "admin.logout.failure",
+                    Level::WARN,
+                    error.message = %error,
+                    "logout request failed: {{error.message}}",
+                );
+            }
             let navigate = leptos_router::hooks::use_navigate();
             navigate("/admin/login", Default::default());
         });

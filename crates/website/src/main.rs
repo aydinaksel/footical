@@ -1,6 +1,6 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     use axum::Router;
     use leptos::prelude::*;
     use leptos_axum::{LeptosRoutes, generate_route_list};
@@ -12,8 +12,7 @@ async fn main() {
         ("ADMIN_PASSWORD", "6f4d8d95-9208-405d-acd7-b44900b7df81"),
         ("COOKIE_SECRET", "5265df47-9b76-425c-898a-b44900b7eeb9"),
     ])
-    .await
-    .expect("failed to inject secrets from Bitwarden");
+    .await?;
 
     let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_owned());
     let site_addr = std::env::var("LEPTOS_SITE_ADDR")
@@ -29,22 +28,23 @@ async fn main() {
 
     let routes = generate_route_list(footical_website::app::App);
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|source| anyhow::anyhow!("DATABASE_URL must be set: {source}"))?;
     let connect_options = database_url
         .parse::<sqlx::sqlite::SqliteConnectOptions>()
-        .expect("invalid DATABASE_URL")
+        .map_err(|source| anyhow::anyhow!("invalid DATABASE_URL: {source}"))?
         .create_if_missing(true)
         .foreign_keys(true)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect_with(connect_options)
         .await
-        .expect("failed to connect to database");
+        .map_err(|source| anyhow::anyhow!("failed to connect to database: {source}"))?;
 
     sqlx::raw_sql(include_str!("../schema.sql"))
         .execute(&pool)
         .await
-        .expect("failed to apply database schema");
+        .map_err(|source| anyhow::anyhow!("failed to apply database schema: {source}"))?;
 
     let scrape_state = footical_website::server::new_scrape_state();
 
@@ -86,7 +86,7 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(site_addr)
         .await
-        .expect("failed to bind");
+        .map_err(|source| anyhow::anyhow!("failed to bind {site_addr}: {source}"))?;
     tracing::event!(
         name: "server.started",
         tracing::Level::INFO,
@@ -96,7 +96,9 @@ async fn main() {
     );
     axum::serve(listener, app.into_make_service())
         .await
-        .expect("server error");
+        .map_err(|source| anyhow::anyhow!("server error: {source}"))?;
+
+    Ok(())
 }
 
 #[cfg(feature = "ssr")]
@@ -106,23 +108,36 @@ async fn run_scheduled_scrapes(
 ) {
     use chrono::{Local, NaiveTime};
 
+    const DEFAULT_SCRAPE_HOUR: u32 = 1;
+
     let scrape_hour = std::env::var("SCRAPE_HOUR")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
-        .unwrap_or(1);
+        .unwrap_or(DEFAULT_SCRAPE_HOUR);
+    let Some(target_time) = NaiveTime::from_hms_opt(scrape_hour, 0, 0) else {
+        tracing::event!(
+            name: "scrape.schedule.invalid_hour",
+            tracing::Level::ERROR,
+            scrape.hour = scrape_hour,
+            "SCRAPE_HOUR {{scrape.hour}} is not a valid hour; scheduler stopped",
+        );
+        return;
+    };
 
     loop {
         let now = Local::now();
-        let target_time = NaiveTime::from_hms_opt(scrape_hour, 0, 0).unwrap();
         let today_target = now.date_naive().and_time(target_time);
 
         let next_run = if now.naive_local() >= today_target {
-            today_target + chrono::Duration::days(1)
+            match today_target.checked_add_signed(chrono::Duration::days(1)) {
+                Some(tomorrow_target) => tomorrow_target,
+                None => return,
+            }
         } else {
             today_target
         };
 
-        let duration_until = next_run - now.naive_local();
+        let duration_until = next_run.signed_duration_since(now.naive_local());
         let sleep_duration = duration_until
             .to_std()
             .unwrap_or(std::time::Duration::from_secs(3600));

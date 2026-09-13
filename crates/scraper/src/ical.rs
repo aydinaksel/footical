@@ -1,8 +1,10 @@
 use chrono::NaiveDateTime;
 use sqlx::SqlitePool;
 
+const FIXTURE_DURATION_MINUTES: i64 = 35;
+
 #[derive(sqlx::FromRow)]
-#[allow(dead_code)]
+#[expect(dead_code, reason = "sqlx::FromRow populates every column; not all are read")]
 struct FixtureRow {
     fixture_id: i32,
     home_team_id: i32,
@@ -94,7 +96,10 @@ fn build_ical(
 
     for fixture in fixtures {
         let start = fixture.scheduled_at.format("%Y%m%dT%H%M%S").to_string();
-        let end = (fixture.scheduled_at + chrono::Duration::minutes(35))
+        let end = fixture
+            .scheduled_at
+            .checked_add_signed(chrono::Duration::minutes(FIXTURE_DURATION_MINUTES))
+            .unwrap_or(fixture.scheduled_at)
             .format("%Y%m%dT%H%M%S")
             .to_string();
         let ical_status = match fixture.status.as_str() {
@@ -155,35 +160,33 @@ fn push_folded(output: &mut String, line: &str) {
     const FIRST_LINE_MAX_BYTES: usize = 75;
     const CONTINUATION_MAX_BYTES: usize = 74;
 
-    let bytes = line.as_bytes();
+    let mut remaining = line;
+    let mut max_bytes = FIRST_LINE_MAX_BYTES;
 
-    if bytes.len() <= FIRST_LINE_MAX_BYTES {
-        output.push_str(line);
+    loop {
+        let Some(split) = fold_point(remaining, max_bytes) else {
+            output.push_str(remaining);
+            output.push_str("\r\n");
+            return;
+        };
+
+        let (folded, rest) = remaining.split_at_checked(split).unwrap_or((remaining, ""));
+        output.push_str(folded);
         output.push_str("\r\n");
-        return;
-    }
-
-    let first_split = utf8_boundary(bytes, FIRST_LINE_MAX_BYTES);
-    output.push_str(&line[..first_split]);
-    output.push_str("\r\n");
-
-    let mut offset = first_split;
-    while offset < bytes.len() {
-        let remaining_bytes = &bytes[offset..];
-        let split = utf8_boundary(remaining_bytes, CONTINUATION_MAX_BYTES);
         output.push(' ');
-        output.push_str(&line[offset..offset + split]);
-        output.push_str("\r\n");
-        offset += split;
+
+        remaining = rest;
+        max_bytes = CONTINUATION_MAX_BYTES;
     }
 }
 
-fn utf8_boundary(bytes: &[u8], max_bytes: usize) -> usize {
-    let end = max_bytes.min(bytes.len());
-    let mut boundary = end;
-    while boundary > 0 && (bytes[boundary - 1] & 0b1100_0000) == 0b1000_0000 {
-        boundary -= 1;
+fn fold_point(line: &str, max_bytes: usize) -> Option<usize> {
+    if line.len() <= max_bytes {
+        return None;
     }
-    boundary
+    line.char_indices()
+        .map(|(index, character)| index.saturating_add(character.len_utf8()))
+        .take_while(|end| *end <= max_bytes)
+        .last()
+        .filter(|split| *split > 0)
 }
-

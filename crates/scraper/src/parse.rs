@@ -1,5 +1,27 @@
 use scraper::{Html, Selector};
 
+fn compile_selector(css: &str) -> anyhow::Result<Selector> {
+    Selector::parse(css).map_err(|error| anyhow::anyhow!("invalid CSS selector {css}: {error}"))
+}
+
+fn parse_price_pence(text: &str) -> Option<i32> {
+    let digits: String = text
+        .chars()
+        .filter(|character| character.is_ascii_digit() || *character == '.')
+        .collect();
+    let (pounds_text, pence_text) = match digits.split_once('.') {
+        Some((pounds, pence)) => (pounds, pence),
+        None => (digits.as_str(), ""),
+    };
+    let pounds = pounds_text.parse::<i32>().ok()?;
+    let pence = match pence_text.len() {
+        0 => 0,
+        1 => pence_text.parse::<i32>().ok()?.checked_mul(10)?,
+        _ => pence_text.get(..2)?.parse::<i32>().ok()?,
+    };
+    pounds.checked_mul(100)?.checked_add(pence)
+}
+
 pub struct LeagueGroupData {
     pub league_group_name: String,
     pub league_group_id: String,
@@ -30,16 +52,17 @@ pub struct FixtureData {
     pub mundial_away_team_name: String,
 }
 
-pub fn parse_league_group_ids(html: &str) -> Vec<String> {
+pub fn parse_league_group_ids(html: &str) -> anyhow::Result<Vec<String>> {
     let document = Html::parse_document(html);
-    let selector = Selector::parse("option").expect("valid selector");
+    let selector = compile_selector("option")?;
 
-    document
+    let league_group_paths = document
         .select(&selector)
         .filter_map(|element| element.value().attr("value"))
         .filter(|value| value.starts_with("/info/leaguegroups/"))
         .map(String::from)
-        .collect()
+        .collect();
+    Ok(league_group_paths)
 }
 
 pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result<LeagueGroupData> {
@@ -51,14 +74,14 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
         .unwrap_or("")
         .to_owned();
 
-    let heading_selector = Selector::parse("h1").expect("valid selector");
+    let heading_selector = compile_selector("h1")?;
     let league_group_name = document
         .select(&heading_selector)
         .next()
         .map(|element| element.text().collect::<String>().trim().to_uppercase())
         .unwrap_or_default();
 
-    let link_selector = Selector::parse("a").expect("valid selector");
+    let link_selector = compile_selector("a")?;
     let mut league_endpoints = Vec::new();
     let mut venue_source_key = None;
 
@@ -76,15 +99,19 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
         }
     }
 
-    let panel_title_selector = Selector::parse("h4.panel-title").expect("valid selector");
+    let panel_title_selector = compile_selector("h4.panel-title")?;
     let league_name_regex =
         regex::Regex::new(r"^(.+?)\s+View Fixtures & Results\s+\[/info/leagues/(\d+)\]")?;
 
     for element in document.select(&panel_title_selector) {
         let text = element.text().collect::<String>();
         if let Some(captures) = league_name_regex.captures(&text) {
-            let league_name = captures[1].trim().to_uppercase();
-            let league_id = captures[2].to_owned();
+            let Some(league_name) = captures.get(1).map(|group| group.as_str().trim().to_uppercase()) else {
+                continue;
+            };
+            let Some(league_id) = captures.get(2).map(|group| group.as_str().to_owned()) else {
+                continue;
+            };
 
             if let Some(endpoint) = league_endpoints
                 .iter_mut()
@@ -120,12 +147,15 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
 
     let day_of_week = day_regex
         .captures(html)
-        .and_then(|captures| day_map(&captures[1]));
+        .and_then(|captures| day_map(captures.get(1)?.as_str()));
 
     let (starts_at, ends_at) = time_regex
         .captures(html)
         .map(|captures| {
-            let parts: Vec<&str> = captures[1].split('-').collect();
+            let Some(times) = captures.get(1) else {
+                return (None, None);
+            };
+            let parts: Vec<&str> = times.as_str().split('-').collect();
             (
                 parts.first().map(|part| part.trim().to_owned()),
                 parts.get(1).map(|part| part.trim().to_owned()),
@@ -133,14 +163,13 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
         })
         .unwrap_or((None, None));
 
-    let price_pence = price_regex.captures(html).and_then(|captures| {
-        let cleaned: String = captures[1].chars().filter(|character| character.is_ascii_digit() || *character == '.').collect();
-        cleaned.parse::<f64>().ok().map(|price| (price * 100.0).round() as i32)
-    });
+    let price_pence = price_regex
+        .captures(html)
+        .and_then(|captures| parse_price_pence(captures.get(1)?.as_str()));
 
     let number_of_players = players_regex
         .captures(html)
-        .and_then(|captures| captures[1].parse().ok());
+        .and_then(|captures| captures.get(1)?.as_str().parse().ok());
 
     Ok(LeagueGroupData {
         league_group_name,
@@ -155,20 +184,19 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
     })
 }
 
-pub fn parse_venue(html: &str) -> VenueData {
+pub fn parse_venue(html: &str) -> anyhow::Result<VenueData> {
     let document = Html::parse_document(html);
 
-    let heading_selector = Selector::parse("h2").expect("valid selector");
+    let heading_selector = compile_selector("h2")?;
     let name = document
         .select(&heading_selector)
         .next()
         .map(|element| element.text().collect::<String>().trim().to_uppercase())
         .unwrap_or_default();
 
-    let address_selector = Selector::parse(
+    let address_selector = compile_selector(
         "body > div.container_fluid > div.container > div.panel-body > div > div > div > div.col-lg-2.col-md-3.col-sm-3.col-xs-12",
-    )
-    .expect("valid selector");
+    )?;
 
     let address = document.select(&address_selector).next().map(|element| {
         let text = element.text().collect::<String>();
@@ -179,20 +207,19 @@ pub fn parse_venue(html: &str) -> VenueData {
             .to_uppercase()
     });
 
-    VenueData { name, address }
+    Ok(VenueData { name, address })
 }
 
-pub fn parse_league_fixtures(html: &str, _league_id: &str) -> Vec<FixtureData> {
+pub fn parse_league_fixtures(html: &str, _league_id: &str) -> anyhow::Result<Vec<FixtureData>> {
     let document = Html::parse_document(html);
-    let group_selector = Selector::parse(
+    let group_selector = compile_selector(
         "#fixtures_accordion_fixtures > div > div:not(.panel-heading)",
-    )
-    .expect("valid selector");
-    let row_selector = Selector::parse("table > tbody > tr").expect("valid selector");
-    let link_selector = Selector::parse("a[href]").expect("valid selector");
-    let date_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2}").expect("valid regex");
-    let time_regex = regex::Regex::new(r"^\d{2}:\d{2}$").expect("valid regex");
-    let team_id_regex = regex::Regex::new(r"/info/teams/(\d+)").expect("valid regex");
+    )?;
+    let row_selector = compile_selector("table > tbody > tr")?;
+    let link_selector = compile_selector("a[href]")?;
+    let date_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2}")?;
+    let time_regex = regex::Regex::new(r"^\d{2}:\d{2}$")?;
+    let team_id_regex = regex::Regex::new(r"/info/teams/(\d+)")?;
 
     let mut fixtures = Vec::new();
 
@@ -207,7 +234,7 @@ pub fn parse_league_fixtures(html: &str, _league_id: &str) -> Vec<FixtureData> {
             let text = row.text().collect::<String>();
             let tokens: Vec<&str> = text.split_whitespace().collect();
 
-            if !tokens.iter().any(|token| *token == "v") {
+            if !tokens.contains(&"v") {
                 continue;
             }
 
@@ -220,23 +247,23 @@ pub fn parse_league_fixtures(html: &str, _league_id: &str) -> Vec<FixtureData> {
                 .select(&link_selector)
                 .filter_map(|link| {
                     let href = link.value().attr("href")?;
-                    let team_id = team_id_regex.captures(href)?[1].parse().ok()?;
+                    let team_id = team_id_regex.captures(href)?.get(1)?.as_str().parse().ok()?;
                     let team_name = link.text().collect::<String>().trim().to_owned();
                     Some((team_id, team_name))
                 })
                 .collect();
 
-            if team_links.len() >= 2 {
+            if let (Some(home_team), Some(away_team)) = (team_links.first(), team_links.get(1)) {
                 fixtures.push(FixtureData {
                     fixture_date: format!("{date}T{match_time}:00"),
-                    mundial_home_team_id: team_links[0].0,
-                    mundial_home_team_name: team_links[0].1.clone(),
-                    mundial_away_team_id: team_links[1].0,
-                    mundial_away_team_name: team_links[1].1.clone(),
+                    mundial_home_team_id: home_team.0,
+                    mundial_home_team_name: home_team.1.clone(),
+                    mundial_away_team_id: away_team.0,
+                    mundial_away_team_name: away_team.1.clone(),
                 });
             }
         }
     }
 
-    fixtures
+    Ok(fixtures)
 }

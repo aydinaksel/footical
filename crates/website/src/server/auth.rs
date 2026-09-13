@@ -1,12 +1,13 @@
 use leptos::prelude::*;
 
-#[allow(dead_code)]
+#[cfg(feature = "ssr")]
 const SESSION_COOKIE_NAME: &str = "footical_session";
 
 #[server]
 pub async fn login(password: String) -> Result<(), ServerFnError> {
     let expected = std::env::var("ADMIN_PASSWORD")
-        .map_err(|_| ServerFnError::new("ADMIN_PASSWORD not configured"))?;
+        .ok()
+        .ok_or_else(|| ServerFnError::new("ADMIN_PASSWORD not configured"))?;
 
     if password != expected {
         return Err(ServerFnError::new("invalid password"));
