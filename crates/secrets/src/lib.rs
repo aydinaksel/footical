@@ -3,7 +3,11 @@ use bitwarden::{
     auth::login::AccessTokenLoginRequest,
     secrets_manager::{SecretsClientExt, secrets::SecretGetRequest},
 };
+use std::path::Path;
 use uuid::Uuid;
+
+const ACCESS_TOKEN_CREDENTIAL: &str = "bws-access-token";
+const CREDENTIALS_DIRECTORY_VARIABLE: &str = "CREDENTIALS_DIRECTORY";
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecretsError {
@@ -23,21 +27,31 @@ pub enum SecretsError {
         source: uuid::Error,
     },
 
-    #[error("BWS access token file not found; set BWS_ACCESS_TOKEN_FILE to a readable path")]
-    AccessTokenNotFound,
+    #[error(
+        "no systemd credential directory; the unit must set \
+         LoadCredential={ACCESS_TOKEN_CREDENTIAL}:<path>"
+    )]
+    CredentialsDirectoryNotFound,
+
+    #[error("systemd credential {ACCESS_TOKEN_CREDENTIAL} is unreadable: {source}")]
+    AccessTokenUnreadable { source: std::io::Error },
+
+    #[error("systemd credential {ACCESS_TOKEN_CREDENTIAL} is empty")]
+    AccessTokenEmpty,
 }
 
-fn load_access_token() -> Result<String, SecretsError> {
-    let path =
-        std::env::var("BWS_ACCESS_TOKEN_FILE").map_err(|_| SecretsError::AccessTokenNotFound)?;
+fn find_access_token() -> Result<String, SecretsError> {
+    let credentials_directory = std::env::var(CREDENTIALS_DIRECTORY_VARIABLE)
+        .map_err(|_| SecretsError::CredentialsDirectoryNotFound)?;
 
-    let token = std::fs::read_to_string(&path)
-        .map_err(|_| SecretsError::AccessTokenNotFound)?
-        .trim()
-        .to_owned();
+    let token =
+        std::fs::read_to_string(Path::new(&credentials_directory).join(ACCESS_TOKEN_CREDENTIAL))
+            .map_err(|source| SecretsError::AccessTokenUnreadable { source })?
+            .trim()
+            .to_owned();
 
     if token.is_empty() {
-        return Err(SecretsError::AccessTokenNotFound);
+        return Err(SecretsError::AccessTokenEmpty);
     }
 
     Ok(token)
@@ -46,7 +60,7 @@ fn load_access_token() -> Result<String, SecretsError> {
 pub async fn inject_from_bws(
     secrets: &[(&str, &str)],
 ) -> Result<(), SecretsError> {
-    let access_token = load_access_token()?;
+    let access_token = find_access_token()?;
 
     let client = Client::new(None);
     let response = client
