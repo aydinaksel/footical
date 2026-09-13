@@ -8,12 +8,12 @@ Runs on `apollo` as a flake input of `~/Projects/chichek-infrastructure`
 ```sh
 cd ~/Projects/chichek-infrastructure
 nix flake update footical    # re-lock to main HEAD
-deploy .#apollo
+nix run . -- .#apollo
 ```
 
 Roll back a bad commit by pinning a good SHA instead of tracking `main`:
 
 ```sh
 nix flake lock --override-input footical "git+https://github.com/aydinaksel/footical?rev=<good-sha>"
-deploy .#apollo
+nix run . -- .#apollo
 ```
