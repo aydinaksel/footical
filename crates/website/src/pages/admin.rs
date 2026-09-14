@@ -75,6 +75,9 @@ pub fn AdminPage() -> impl IntoView {
                                 <h1 class="text-xl font-bold text-gray-800 mt-0.5">"Scraper Dashboard"</h1>
                             </div>
                             <div class="flex items-center gap-4">
+                                <a href="/admin/squad" class="text-sm text-blue-600 hover:text-blue-700">
+                                    "Squad"
+                                </a>
                                 <a href="/admin/fines" class="text-sm text-blue-600 hover:text-blue-700">
                                     "Fines"
                                 </a>

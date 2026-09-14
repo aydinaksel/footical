@@ -106,6 +106,15 @@ pub struct LedgerEntry {
     pub note: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+pub struct SquadRosterEntry {
+    pub squad_player_id: i32,
+    pub name: String,
+    pub is_active: bool,
+    pub balance_pence: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::format_pence;

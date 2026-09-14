@@ -1,4 +1,6 @@
-use crate::types::{FineType, LedgerEntry, PlayerBalance, SquadFixture, SquadPlayer};
+use crate::types::{
+    FineType, LedgerEntry, PlayerBalance, SquadFixture, SquadPlayer, SquadRosterEntry,
+};
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
@@ -221,6 +223,55 @@ pub async fn delete_entry(entry_id: i32, is_payment: bool) -> Result<(), ServerF
 
     if result.rows_affected() == 0 {
         return Err(ServerFnError::new("entry not found"));
+    }
+
+    Ok(())
+}
+
+#[server]
+pub async fn get_squad_roster() -> Result<Vec<SquadRosterEntry>, ServerFnError> {
+    require_admin().await?;
+    let pool = database_pool()?;
+    sqlx::query_as::<_, SquadRosterEntry>(
+        "SELECT
+             squad_player.squad_player_id,
+             squad_player.name,
+             squad_player.is_active,
+             COALESCE(fine_totals.total_pence, 0)
+                 - COALESCE(payment_totals.total_pence, 0) AS balance_pence
+         FROM squad_player
+         LEFT JOIN (
+             SELECT squad_player_id, SUM(amount_pence) AS total_pence
+             FROM fine GROUP BY squad_player_id
+         ) AS fine_totals ON fine_totals.squad_player_id = squad_player.squad_player_id
+         LEFT JOIN (
+             SELECT squad_player_id, SUM(amount_pence) AS total_pence
+             FROM payment GROUP BY squad_player_id
+         ) AS payment_totals ON payment_totals.squad_player_id = squad_player.squad_player_id
+         ORDER BY squad_player.is_active DESC, squad_player.name",
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|error| ServerFnError::new(error.to_string()))
+}
+
+#[server]
+pub async fn set_player_active(
+    squad_player_id: i32,
+    is_active: bool,
+) -> Result<(), ServerFnError> {
+    require_admin().await?;
+    let pool = database_pool()?;
+
+    let result = sqlx::query("UPDATE squad_player SET is_active = ? WHERE squad_player_id = ?")
+        .bind(is_active)
+        .bind(squad_player_id)
+        .execute(&pool)
+        .await
+        .map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err(ServerFnError::new("unknown player"));
     }
 
     Ok(())
