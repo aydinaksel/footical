@@ -54,6 +54,7 @@
           pkgs.tailwindcss_4
           pkgs.wasm-bindgen-cli_0_2_121
           pkgs.binaryen
+          pkgs.brotli
           pkgs.pkg-config
         ];
 
@@ -80,7 +81,7 @@
           doNotPostBuildInstallCargoBinaries = true;
 
           buildPhaseCargoCommand = ''
-            cargo leptos build --release
+            cargo leptos build --release --precompress
           '';
 
           installPhaseCommand = ''

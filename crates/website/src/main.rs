@@ -2,6 +2,21 @@
 const DEFAULT_LOG_FILTER: &str = "info,footical_website=debug,footical_scraper=debug";
 
 #[cfg(feature = "ssr")]
+const SITE_PACKAGE_DIRECTORY: &str = "pkg";
+
+#[cfg(feature = "ssr")]
+const DATABASE_BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+#[cfg(feature = "ssr")]
+const DATABASE_CACHE_SIZE_KIBIBYTES: &str = "-16000";
+
+#[cfg(feature = "ssr")]
+const DATABASE_MEMORY_MAP_SIZE_BYTES: &str = "268435456";
+
+#[cfg(feature = "ssr")]
+const DATABASE_MAX_CONNECTIONS: u32 = 16;
+
+#[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use axum::Router;
@@ -26,8 +41,8 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| std::net::SocketAddr::from(([0, 0, 0, 0], 3003)));
     let leptos_options = LeptosOptions::builder()
         .output_name("footical-website")
-        .site_root(site_root)
-        .site_pkg_dir("pkg")
+        .site_root(site_root.clone())
+        .site_pkg_dir(SITE_PACKAGE_DIRECTORY)
         .site_addr(site_addr)
         .build();
 
@@ -40,8 +55,13 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|source| anyhow::anyhow!("invalid DATABASE_URL: {source}"))?
         .create_if_missing(true)
         .foreign_keys(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal)
+        .busy_timeout(DATABASE_BUSY_TIMEOUT)
+        .pragma("cache_size", DATABASE_CACHE_SIZE_KIBIBYTES)
+        .pragma("mmap_size", DATABASE_MEMORY_MAP_SIZE_BYTES);
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(DATABASE_MAX_CONNECTIONS)
         .connect_with(connect_options)
         .await
         .map_err(|source| anyhow::anyhow!("failed to connect to database: {source}"))?;
@@ -59,7 +79,14 @@ async fn main() -> anyhow::Result<()> {
         scrape_state: scrape_state.clone(),
     };
 
+    let static_assets =
+        tower_http::services::ServeDir::new(format!("{site_root}/{SITE_PACKAGE_DIRECTORY}"))
+            .precompressed_br()
+            .precompressed_gzip()
+            .append_index_html_on_directories(false);
+
     let site_router = Router::new()
+        .nest_service(&format!("/{SITE_PACKAGE_DIRECTORY}"), static_assets)
         .route(
             "/ical/{filename}",
             axum::routing::get(footical_website::server::ical::handler),
@@ -88,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .fallback_service(site_router)
+        .layer(tower_http::compression::CompressionLayer::new())
         .layer(axum::middleware::from_fn(require_admin_session))
         .layer(axum::middleware::from_fn(route_calendar_subdomain));
 

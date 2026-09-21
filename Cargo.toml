@@ -17,6 +17,7 @@ site-addr = "0.0.0.0:3003"
 reload-port = 5004
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
+lib-profile-release = "wasm-release"
 
 [workspace.lints.clippy]
 # Don't panic
@@ -74,3 +75,11 @@ dbg_macro = "deny"
 # Suppressions must carry a reason
 allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

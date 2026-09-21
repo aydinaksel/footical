@@ -96,7 +96,8 @@ pub async fn get_todays_fixtures() -> Result<Vec<TodayFixture>, ServerFnError> {
          JOIN division ON division.division_id = fixture.division_id
          JOIN league ON league.league_id = division.league_id
          LEFT JOIN venue ON venue.venue_id = league.venue_id
-         WHERE date(fixture.scheduled_at) = date('now', 'localtime')
+         WHERE fixture.scheduled_at >= date('now', 'localtime')
+           AND fixture.scheduled_at < date('now', 'localtime', '+1 day')
          ORDER BY league.name, division.name, fixture.scheduled_at",
     )
     .fetch_all(&pool)
