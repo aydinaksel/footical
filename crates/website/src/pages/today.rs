@@ -4,7 +4,7 @@ use leptos::prelude::*;
 
 #[component]
 pub fn TodayPage() -> impl IntoView {
-    let fixtures = Resource::new(|| (), |_| get_todays_fixtures());
+    let fixtures = Resource::new_blocking(|| (), |_| get_todays_fixtures());
 
     view! {
         <main class="flex justify-center p-4 pt-8">
@@ -22,105 +22,103 @@ pub fn TodayPage() -> impl IntoView {
                         </div>
                     }
                 }>
-                    {move || {
-                        fixtures
-                            .get()
-                            .map(|result| match result {
-                                Err(_) => {
-                                    view! {
-                                        <p class="text-sm text-red-500 text-center py-12">
-                                            "Failed to load fixtures."
-                                        </p>
-                                    }
-                                        .into_any()
+                    {move || Suspend::new(async move {
+                        match fixtures.await {
+                            Err(_) => {
+                                view! {
+                                    <p class="text-sm text-red-500 text-center py-12">
+                                        "Failed to load fixtures."
+                                    </p>
                                 }
-                                Ok(fixtures) if fixtures.is_empty() => {
-                                    view! {
-                                        <p class="text-sm text-gray-400 text-center py-12">
-                                            "No matches scheduled for today."
-                                        </p>
-                                    }
-                                        .into_any()
+                                    .into_any()
+                            }
+                            Ok(fixtures) if fixtures.is_empty() => {
+                                view! {
+                                    <p class="text-sm text-gray-400 text-center py-12">
+                                        "No matches scheduled for today."
+                                    </p>
                                 }
-                                Ok(fixtures) => {
-                                    let grouped = group_by_league(fixtures);
-                                    view! {
-                                        <div class="space-y-6">
-                                            {grouped
-                                                .into_iter()
-                                                .map(|(league_name, divisions)| {
-                                                    view! {
-                                                        <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                                                            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
-                                                                <h2 class="font-bold text-gray-800">{league_name}</h2>
-                                                            </div>
-                                                            {divisions
-                                                                .into_iter()
-                                                                .map(|(division_name, venue, fixtures)| {
-                                                                    view! {
-                                                                        <div class="border-b border-gray-100 last:border-b-0">
-                                                                            <div class="px-6 py-3 flex items-baseline justify-between gap-4">
-                                                                                <p class="text-sm font-semibold text-gray-600">
-                                                                                    {division_name}
-                                                                                </p>
-                                                                                {venue
-                                                                                    .map(|venue_text| {
-                                                                                        view! {
-                                                                                            <p class="text-xs text-gray-400 truncate">{venue_text}</p>
-                                                                                        }
-                                                                                    })}
-                                                                            </div>
-                                                                            <ul class="divide-y divide-gray-50">
-                                                                                {fixtures
-                                                                                    .into_iter()
-                                                                                    .map(|fixture| {
-                                                                                        let time_label = fixture
-                                                                                            .scheduled_at
-                                                                                            .format("%H:%M")
-                                                                                            .to_string();
-                                                                                        let is_not_scheduled = fixture.status != "scheduled";
-                                                                                        let status_label = fixture.status.to_uppercase();
-
-                                                                                        view! {
-                                                                                            <li class="px-6 py-3 flex items-center justify-between gap-4">
-                                                                                                <div class="flex items-center gap-3 min-w-0">
-                                                                                                    <span class="text-sm font-mono text-gray-400 shrink-0">
-                                                                                                        {time_label}
-                                                                                                    </span>
-                                                                                                    <p class="text-sm text-gray-800 truncate">
-                                                                                                        {fixture.home_team_name} " vs " {fixture.away_team_name}
-                                                                                                    </p>
-                                                                                                </div>
-                                                                                                {is_not_scheduled
-                                                                                                    .then(|| {
-                                                                                                        view! {
-                                                                                                            <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
-                                                                                                                {status_label}
-                                                                                                            </span>
-                                                                                                        }
-                                                                                                    })}
-                                                                                            </li>
-                                                                                        }
-                                                                                            .into_any()
-                                                                                    })
-                                                                                    .collect_view()}
-                                                                            </ul>
-                                                                        </div>
-                                                                    }
-                                                                        .into_any()
-                                                                })
-                                                                .collect_view()}
+                                    .into_any()
+                            }
+                            Ok(fixtures) => {
+                                let grouped = group_by_league(fixtures);
+                                view! {
+                                    <div class="space-y-6">
+                                        {grouped
+                                            .into_iter()
+                                            .map(|(league_name, divisions)| {
+                                                view! {
+                                                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                                                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                                                            <h2 class="font-bold text-gray-800">{league_name}</h2>
                                                         </div>
-                                                    }
-                                                        .into_any()
-                                                })
-                                                .collect_view()}
-                                        </div>
-                                    }
-                                        .into_any()
+                                                        {divisions
+                                                            .into_iter()
+                                                            .map(|(division_name, venue, fixtures)| {
+                                                                view! {
+                                                                    <div class="border-b border-gray-100 last:border-b-0">
+                                                                        <div class="px-6 py-3 flex items-baseline justify-between gap-4">
+                                                                            <p class="text-sm font-semibold text-gray-600">
+                                                                                {division_name}
+                                                                            </p>
+                                                                            {venue
+                                                                                .map(|venue_text| {
+                                                                                    view! {
+                                                                                        <p class="text-xs text-gray-400 truncate">{venue_text}</p>
+                                                                                    }
+                                                                                })}
+                                                                        </div>
+                                                                        <ul class="divide-y divide-gray-50">
+                                                                            {fixtures
+                                                                                .into_iter()
+                                                                                .map(|fixture| {
+                                                                                    let time_label = fixture
+                                                                                        .scheduled_at
+                                                                                        .format("%H:%M")
+                                                                                        .to_string();
+                                                                                    let is_not_scheduled = fixture.status != "scheduled";
+                                                                                    let status_label = fixture.status.to_uppercase();
+
+                                                                                    view! {
+                                                                                        <li class="px-6 py-3 flex items-center justify-between gap-4">
+                                                                                            <div class="flex items-center gap-3 min-w-0">
+                                                                                                <span class="text-sm font-mono text-gray-400 shrink-0">
+                                                                                                    {time_label}
+                                                                                                </span>
+                                                                                                <p class="text-sm text-gray-800 truncate">
+                                                                                                    {fixture.home_team_name} " vs " {fixture.away_team_name}
+                                                                                                </p>
+                                                                                            </div>
+                                                                                            {is_not_scheduled
+                                                                                                .then(|| {
+                                                                                                    view! {
+                                                                                                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+                                                                                                            {status_label}
+                                                                                                        </span>
+                                                                                                    }
+                                                                                                })}
+                                                                                        </li>
+                                                                                    }
+                                                                                        .into_any()
+                                                                                })
+                                                                                .collect_view()}
+                                                                        </ul>
+                                                                    </div>
+                                                                }
+                                                                    .into_any()
+                                                            })
+                                                            .collect_view()}
+                                                    </div>
+                                                }
+                                                    .into_any()
+                                            })
+                                            .collect_view()}
+                                    </div>
                                 }
-                            })
-                    }}
+                                    .into_any()
+                            }
+                        }
+                    })}
                 </Suspense>
             </div>
         </main>

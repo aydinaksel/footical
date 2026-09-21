@@ -2,8 +2,7 @@ use crate::components::admin_only::AdminOnly;
 use crate::components::searchable_select::{SearchableSelect, SelectOption};
 use crate::components::toast::use_toaster;
 use crate::server::squad::{
-    delete_entry, get_fine_types, get_recent_entries, get_squad_players, record_fine,
-    record_payment,
+    get_fine_types, get_recent_entries, get_squad_players, DeleteEntry, RecordFine, RecordPayment,
 };
 use crate::types::{format_pence, FineType, SquadPlayer};
 use leptos::prelude::*;
@@ -46,9 +45,18 @@ pub fn FinesAdminPage() -> impl IntoView {
 
 #[component]
 fn FinesAdminForms() -> impl IntoView {
-    let players = Resource::new(|| (), |_| get_squad_players());
-    let fine_types = Resource::new(|| (), |_| get_fine_types());
-    let ledger_version = RwSignal::new(0_u32);
+    let players = Resource::new_blocking(|| (), |_| get_squad_players());
+    let fine_types = Resource::new_blocking(|| (), |_| get_fine_types());
+    let record_fine = ServerAction::<RecordFine>::new();
+    let record_payment = ServerAction::<RecordPayment>::new();
+    let delete_entry = ServerAction::<DeleteEntry>::new();
+    let ledger_version = Memo::new(move |_| {
+        record_fine
+            .version()
+            .get()
+            .wrapping_add(record_payment.version().get())
+            .wrapping_add(delete_entry.version().get())
+    });
 
     view! {
         <main class="flex justify-center p-4 pt-8">
@@ -78,16 +86,16 @@ fn FinesAdminForms() -> impl IntoView {
                                 <RecordFineForm
                                     squad=squad.clone()
                                     tariff=tariff
-                                    ledger_version=ledger_version
+                                    record_fine=record_fine
                                 />
-                                <RecordPaymentForm squad=squad ledger_version=ledger_version />
+                                <RecordPaymentForm squad=squad record_payment=record_payment />
                             }
                                 .into_any(),
                         )
                     }}
                 </Suspense>
 
-                <RecentEntries ledger_version=ledger_version />
+                <RecentEntries delete_entry=delete_entry ledger_version=ledger_version />
             </div>
         </main>
     }
@@ -95,17 +103,24 @@ fn FinesAdminForms() -> impl IntoView {
 }
 
 #[component]
-fn RecentEntries(ledger_version: RwSignal<u32>) -> impl IntoView {
+fn RecentEntries(
+    delete_entry: ServerAction<DeleteEntry>,
+    ledger_version: Memo<usize>,
+) -> impl IntoView {
     let entries = Resource::new(move || ledger_version.get(), |_| get_recent_entries());
-    let delete_error = RwSignal::new(Option::<String>::None);
+
+    let delete_error = move || {
+        delete_entry
+            .value()
+            .get()
+            .and_then(|result| result.err())
+            .map(|error| error.to_string())
+    };
 
     let on_delete = move |entry_id: i32, is_payment: bool| {
-        delete_error.set(None);
-        leptos::task::spawn_local(async move {
-            match delete_entry(entry_id, is_payment).await {
-                Ok(()) => ledger_version.update(|version| *version = version.wrapping_add(1)),
-                Err(error) => delete_error.set(Some(error.to_string())),
-            }
+        delete_entry.dispatch(DeleteEntry {
+            entry_id,
+            is_payment,
         });
     };
 
@@ -114,9 +129,9 @@ fn RecentEntries(ledger_version: RwSignal<u32>) -> impl IntoView {
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
                 <h2 class="font-bold text-gray-800">"Recent entries"</h2>
             </div>
-            <Show when=move || delete_error.get().is_some()>
+            <Show when=move || delete_error().is_some()>
                 <p class="text-sm text-red-500 px-6 pt-3">
-                    {move || delete_error.get().unwrap_or_default()}
+                    {move || delete_error().unwrap_or_default()}
                 </p>
             </Show>
             <Transition fallback=move || {
@@ -193,13 +208,12 @@ fn RecentEntries(ledger_version: RwSignal<u32>) -> impl IntoView {
 fn RecordFineForm(
     squad: Vec<SquadPlayer>,
     tariff: Vec<FineType>,
-    ledger_version: RwSignal<u32>,
+    record_fine: ServerAction<RecordFine>,
 ) -> impl IntoView {
     let toaster = use_toaster();
     let selected_player = RwSignal::new(Option::<i32>::None);
     let selected_fine_type = RwSignal::new(Option::<i32>::None);
     let note = RwSignal::new(String::new());
-    let is_saving = RwSignal::new(false);
     let reset_fields = RwSignal::new(0_u32);
 
     let player_options: Vec<SelectOption> = squad
@@ -238,29 +252,30 @@ fn RecordFineForm(
             return;
         };
 
-        let note_value = note.get();
-        is_saving.set(true);
-        leptos::task::spawn_local(async move {
-            match record_fine(squad_player_id, fine_type_id, note_value).await {
-                Ok(()) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show("Fine recorded");
-                    }
-                    note.set(String::new());
-                    selected_player.set(None);
-                    selected_fine_type.set(None);
-                    reset_fields.update(|generation| *generation = generation.wrapping_add(1));
-                    ledger_version.update(|version| *version = version.wrapping_add(1));
-                }
-                Err(error) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show_error(error.to_string());
-                    }
-                }
-            }
-            is_saving.set(false);
+        record_fine.dispatch(RecordFine {
+            squad_player_id,
+            fine_type_id,
+            note: note.get(),
         });
     };
+
+    Effect::new(move |_| match record_fine.value().get() {
+        Some(Ok(())) => {
+            if let Some(toaster) = toaster {
+                toaster.show("Fine recorded");
+            }
+            note.set(String::new());
+            selected_player.set(None);
+            selected_fine_type.set(None);
+            reset_fields.update(|generation| *generation = generation.wrapping_add(1));
+        }
+        Some(Err(error)) => {
+            if let Some(toaster) = toaster {
+                toaster.show_error(error.to_string());
+            }
+        }
+        None => {}
+    });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
@@ -290,10 +305,10 @@ fn RecordFineForm(
 
             <button
                 type="submit"
-                disabled=move || is_saving.get()
+                disabled=move || record_fine.pending().get()
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
             >
-                {move || if is_saving.get() { "Saving…" } else { "Add fine" }}
+                {move || if record_fine.pending().get() { "Saving…" } else { "Add fine" }}
             </button>
         </form>
     }
@@ -301,13 +316,16 @@ fn RecordFineForm(
 }
 
 #[component]
-fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> impl IntoView {
+fn RecordPaymentForm(
+    squad: Vec<SquadPlayer>,
+    record_payment: ServerAction<RecordPayment>,
+) -> impl IntoView {
     let toaster = use_toaster();
     let selected_player = RwSignal::new(Option::<i32>::None);
     let amount_text = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
-    let is_saving = RwSignal::new(false);
     let reset_fields = RwSignal::new(0_u32);
+    let last_amount_pence = RwSignal::new(0_i64);
 
     let player_options: Vec<SelectOption> = squad
         .into_iter()
@@ -339,32 +357,34 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
             return;
         }
 
-        let note_value = note.get();
-        is_saving.set(true);
-        leptos::task::spawn_local(async move {
-            match record_payment(squad_player_id, amount_pence, note_value).await {
-                Ok(()) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show(format!(
-                            "Payment of {} recorded",
-                            format_pence(amount_pence)
-                        ));
-                    }
-                    amount_text.set(String::new());
-                    reset_fields.update(|generation| *generation = generation.wrapping_add(1));
-                    note.set(String::new());
-                    selected_player.set(None);
-                    ledger_version.update(|version| *version = version.wrapping_add(1));
-                }
-                Err(error) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show_error(error.to_string());
-                    }
-                }
-            }
-            is_saving.set(false);
+        last_amount_pence.set(amount_pence);
+        record_payment.dispatch(RecordPayment {
+            squad_player_id,
+            amount_pence,
+            note: note.get(),
         });
     };
+
+    Effect::new(move |_| match record_payment.value().get() {
+        Some(Ok(())) => {
+            if let Some(toaster) = toaster {
+                toaster.show(format!(
+                    "Payment of {} recorded",
+                    format_pence(last_amount_pence.get_untracked()),
+                ));
+            }
+            amount_text.set(String::new());
+            reset_fields.update(|generation| *generation = generation.wrapping_add(1));
+            note.set(String::new());
+            selected_player.set(None);
+        }
+        Some(Err(error)) => {
+            if let Some(toaster) = toaster {
+                toaster.show_error(error.to_string());
+            }
+        }
+        None => {}
+    });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
@@ -401,10 +421,10 @@ fn RecordPaymentForm(squad: Vec<SquadPlayer>, ledger_version: RwSignal<u32>) -> 
 
             <button
                 type="submit"
-                disabled=move || is_saving.get()
+                disabled=move || record_payment.pending().get()
                 class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
             >
-                {move || if is_saving.get() { "Saving…" } else { "Add payment" }}
+                {move || if record_payment.pending().get() { "Saving…" } else { "Add payment" }}
             </button>
         </form>
     }

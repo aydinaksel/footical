@@ -46,7 +46,7 @@ pub fn TeamLayout(children: ChildrenFn) -> impl IntoView {
 
 #[component]
 pub fn TeamFixturesPage() -> impl IntoView {
-    let fixtures = Resource::new(|| (), |_| get_squad_fixtures());
+    let fixtures = Resource::new_blocking(|| (), |_| get_squad_fixtures());
 
     view! {
         <TeamLayout>
@@ -78,7 +78,7 @@ pub fn TeamFixturesPage() -> impl IntoView {
 
 #[component]
 pub fn TeamFinesPage() -> impl IntoView {
-    let balances = Resource::new(|| (), |_| get_player_balances());
+    let balances = Resource::new_blocking(|| (), |_| get_player_balances());
 
     view! {
         <TeamLayout>

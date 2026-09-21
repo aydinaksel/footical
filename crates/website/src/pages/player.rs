@@ -13,13 +13,13 @@ pub fn PlayerPage() -> impl IntoView {
             .and_then(|value| value.parse::<i32>().ok())
     };
 
-    let ledger = Resource::new(player_id, |id| async move {
+    let ledger = Resource::new_blocking(player_id, |id| async move {
         match id {
             Some(id) => get_player_ledger(id).await,
             None => Ok(Vec::new()),
         }
     });
-    let balances = Resource::new(|| (), |_| get_player_balances());
+    let balances = Resource::new_blocking(|| (), |_| get_player_balances());
 
     view! {
         <main class="flex justify-center p-4 pt-8">

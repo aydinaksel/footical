@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
+use leptos_router::SsrMode;
 
 use crate::components::header::Header;
 use crate::components::toast::ToastHost;
@@ -44,16 +45,20 @@ pub fn App() -> impl IntoView {
                 <div class="min-h-screen bg-gray-50">
                     <Header />
                     <Routes fallback=|| "Page not found">
-                        <Route path=path!("/") view=Home />
-                        <Route path=path!("/fixtures") view=FixturesPage />
-                        <Route path=path!("/today") view=TodayPage />
+                        <Route path=path!("/") view=Home ssr=SsrMode::Async />
+                        <Route path=path!("/fixtures") view=FixturesPage ssr=SsrMode::Async />
+                        <Route path=path!("/today") view=TodayPage ssr=SsrMode::Async />
                         <Route
                             path=path!("/team")
                             view=|| view! { <Redirect path="/team/fixtures" /> }
                         />
-                        <Route path=path!("/team/fixtures") view=TeamFixturesPage />
-                        <Route path=path!("/team/fines") view=TeamFinesPage />
-                        <Route path=path!("/team/player/:id") view=PlayerPage />
+                        <Route
+                            path=path!("/team/fixtures")
+                            view=TeamFixturesPage
+                            ssr=SsrMode::Async
+                        />
+                        <Route path=path!("/team/fines") view=TeamFinesPage ssr=SsrMode::Async />
+                        <Route path=path!("/team/player/:id") view=PlayerPage ssr=SsrMode::Async />
                         <Route path=path!("/admin/fines") view=FinesAdminPage />
                         <Route path=path!("/admin/squad") view=SquadAdminPage />
                         <Route path=path!("/admin/login") view=LoginPage />

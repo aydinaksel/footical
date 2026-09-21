@@ -1,6 +1,6 @@
 use crate::components::admin_only::AdminOnly;
 use crate::components::toast::use_toaster;
-use crate::server::squad::{get_squad_roster, set_player_active};
+use crate::server::squad::{get_squad_roster, SetPlayerActive};
 use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
 
@@ -17,28 +17,36 @@ pub fn SquadAdminPage() -> impl IntoView {
 #[component]
 fn SquadRoster() -> impl IntoView {
     let toaster = use_toaster();
-    let roster_version = RwSignal::new(0_u32);
-    let roster = Resource::new(move || roster_version.get(), |_| get_squad_roster());
+    let set_player_active = ServerAction::<SetPlayerActive>::new();
+    let roster = Resource::new(
+        move || set_player_active.version().get(),
+        |_| get_squad_roster(),
+    );
+
+    let last_toggle_made_active = RwSignal::new(false);
+
+    Effect::new(move |_| {
+        let Some(toaster) = toaster else {
+            return;
+        };
+        match set_player_active.value().get() {
+            Some(Ok(())) => {
+                toaster.show(if last_toggle_made_active.get_untracked() {
+                    "Player shown"
+                } else {
+                    "Player hidden"
+                });
+            }
+            Some(Err(error)) => toaster.show_error(error.to_string()),
+            None => {}
+        }
+    });
 
     let on_toggle = move |squad_player_id: i32, make_active: bool| {
-        leptos::task::spawn_local(async move {
-            match set_player_active(squad_player_id, make_active).await {
-                Ok(()) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show(if make_active {
-                            "Player shown"
-                        } else {
-                            "Player hidden"
-                        });
-                    }
-                    roster_version.update(|version| *version = version.wrapping_add(1));
-                }
-                Err(error) => {
-                    if let Some(toaster) = toaster {
-                        toaster.show_error(error.to_string());
-                    }
-                }
-            }
+        last_toggle_made_active.set(make_active);
+        set_player_active.dispatch(SetPlayerActive {
+            squad_player_id,
+            is_active: make_active,
         });
     };
 
