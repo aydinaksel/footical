@@ -1,45 +1,56 @@
-use crate::types::{Division, Fixture, League, Team, TodayFixture};
+use crate::types::{Fixture, TeamListing, TodayFixture};
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use crate::server::database::{database_pool, report_query_failure};
 
+#[cfg(feature = "ssr")]
+const TEAM_LISTING_SELECT: &str = "SELECT
+         team.team_id,
+         team.name AS team_name,
+         division.name AS division_name,
+         league.name AS league_name
+     FROM team
+     JOIN division ON division.division_id = team.division_id
+     JOIN league ON league.league_id = division.league_id";
+
+#[cfg(feature = "ssr")]
+const TEAM_SEARCH_LIMIT: i32 = 20;
+
 #[server]
-pub async fn get_leagues() -> Result<Vec<League>, ServerFnError> {
+pub async fn search_teams(search_text: String) -> Result<Vec<TeamListing>, ServerFnError> {
+    let trimmed_search_text = search_text.trim();
+    if trimmed_search_text.is_empty() {
+        return Ok(vec![]);
+    }
+
     let pool = database_pool()?;
-    let rows = sqlx::query_as::<_, League>("SELECT league_id, name FROM league ORDER BY name")
+    let statement = format!(
+        "{TEAM_LISTING_SELECT} WHERE team.name LIKE '%' || ? || '%' ORDER BY team.name LIMIT ?"
+    );
+    let rows = sqlx::query_as::<_, TeamListing>(sqlx::AssertSqlSafe(statement))
+        .bind(trimmed_search_text)
+        .bind(TEAM_SEARCH_LIMIT)
         .fetch_all(&pool)
         .await
-        .map_err(|error| report_query_failure("select_leagues", error))?;
+        .map_err(|error| report_query_failure("search_teams", error))?;
     Ok(rows)
 }
 
 #[server]
-pub async fn get_divisions() -> Result<Vec<Division>, ServerFnError> {
+pub async fn get_team_listing(team_id: i32) -> Result<Option<TeamListing>, ServerFnError> {
     let pool = database_pool()?;
-    let rows = sqlx::query_as::<_, Division>(
-        "SELECT division_id, league_id, name FROM division ORDER BY league_id, name",
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|error| report_query_failure("select_divisions", error))?;
-    Ok(rows)
+    let statement = format!("{TEAM_LISTING_SELECT} WHERE team.team_id = ?");
+    let row = sqlx::query_as::<_, TeamListing>(sqlx::AssertSqlSafe(statement))
+        .bind(team_id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|error| report_query_failure("select_team_listing", error))?;
+    Ok(row)
 }
 
 #[server]
-pub async fn get_teams() -> Result<Vec<Team>, ServerFnError> {
-    let pool = database_pool()?;
-    let rows = sqlx::query_as::<_, Team>(
-        "SELECT team_id, division_id, name FROM team ORDER BY division_id, name",
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|error| report_query_failure("select_teams", error))?;
-    Ok(rows)
-}
-
-#[server]
-pub async fn get_fixtures() -> Result<Vec<Fixture>, ServerFnError> {
+pub async fn get_team_fixtures(team_id: i32) -> Result<Vec<Fixture>, ServerFnError> {
     let pool = database_pool()?;
     let rows = sqlx::query_as::<_, Fixture>(
         "SELECT
@@ -53,11 +64,15 @@ pub async fn get_fixtures() -> Result<Vec<Fixture>, ServerFnError> {
          FROM fixture
          JOIN team home_team ON home_team.team_id = fixture.home_team_id
          JOIN team away_team ON away_team.team_id = fixture.away_team_id
+         WHERE (fixture.home_team_id = ? OR fixture.away_team_id = ?)
+           AND fixture.scheduled_at >= datetime('now')
          ORDER BY fixture.scheduled_at",
     )
+    .bind(team_id)
+    .bind(team_id)
     .fetch_all(&pool)
     .await
-    .map_err(|error| report_query_failure("select_fixtures", error))?;
+    .map_err(|error| report_query_failure("select_team_fixtures", error))?;
     Ok(rows)
 }
 

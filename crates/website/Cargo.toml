@@ -17,7 +17,7 @@ leptos_router = { version = "0.8" }
 leptos_meta = { version = "0.8" }
 serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
-leptos-use = { version = "0.19", features = ["use_clipboard", "storage", "on_click_outside", "use_timeout_fn"] }
+leptos-use = { version = "0.19", features = ["use_clipboard", "use_cookie", "storage", "on_click_outside", "signal_debounced", "use_timeout_fn"] }
 codee = { version = "0.3", features = ["json_serde"] }
 tracing = "0.1"
 anyhow = { version = "1", optional = true }
@@ -43,6 +43,7 @@ ssr = [
     "leptos_router/ssr",
     "leptos_meta/ssr",
     "leptos-use/ssr",
+    "leptos-use/axum",
     "dep:leptos_axum",
     "dep:axum",
     "dep:tokio",

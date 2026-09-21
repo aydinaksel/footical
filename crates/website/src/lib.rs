@@ -1,3 +1,5 @@
+pub const CALENDAR_HOST: &str = "calendar.footical.club";
+
 pub mod app;
 mod components;
 mod pages;

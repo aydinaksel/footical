@@ -2,25 +2,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
-pub struct League {
-    pub league_id: i32,
-    pub name: String,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
-pub struct Division {
-    pub division_id: i32,
-    pub league_id: i32,
-    pub name: String,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
-pub struct Team {
+pub struct TeamListing {
     pub team_id: i32,
-    pub division_id: i32,
-    pub name: String,
+    pub team_name: String,
+    pub division_name: String,
+    pub league_name: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]

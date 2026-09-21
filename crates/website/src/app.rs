@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_router::components::{Route, Router, Routes};
+use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
 use crate::components::header::Header;
@@ -13,10 +13,7 @@ use crate::pages::player::PlayerPage;
 use crate::pages::squad_admin::SquadAdminPage;
 use crate::pages::team::{TeamFinesPage, TeamFixturesPage};
 use crate::pages::today::TodayPage;
-#[cfg(feature = "hydrate")]
-use crate::server::data::{get_divisions, get_fixtures, get_leagues, get_teams};
 use crate::tracked_team::provide_tracked_team;
-use crate::types::{Division, Fixture, League, Team};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -39,37 +36,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let all_leagues: RwSignal<Vec<League>> = RwSignal::new(vec![]);
-    let all_divisions: RwSignal<Vec<Division>> = RwSignal::new(vec![]);
-    let all_teams: RwSignal<Vec<Team>> = RwSignal::new(vec![]);
-    let all_fixtures: RwSignal<Vec<Fixture>> = RwSignal::new(vec![]);
-    let is_data_loaded: RwSignal<bool> = RwSignal::new(false);
-
-    #[cfg(feature = "hydrate")]
-    {
-        leptos::task::spawn_local(async move {
-            if let Ok(data) = get_leagues().await {
-                all_leagues.set(data);
-            }
-            if let Ok(data) = get_divisions().await {
-                all_divisions.set(data);
-            }
-            if let Ok(data) = get_teams().await {
-                all_teams.set(data);
-            }
-            if let Ok(data) = get_fixtures().await {
-                all_fixtures.set(data);
-            }
-            is_data_loaded.set(true);
-        });
-    }
-
-    provide_context(all_leagues);
-    provide_context(all_divisions);
-    provide_context(all_teams);
-    provide_context(all_fixtures);
     provide_tracked_team();
-    provide_context(is_data_loaded);
 
     view! {
         <Router>
@@ -82,11 +49,7 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/today") view=TodayPage />
                         <Route
                             path=path!("/team")
-                            view=|| {
-                                view! {
-                                    <leptos_router::components::Redirect path="/team/fixtures" />
-                                }
-                            }
+                            view=|| view! { <Redirect path="/team/fixtures" /> }
                         />
                         <Route path=path!("/team/fixtures") view=TeamFixturesPage />
                         <Route path=path!("/team/fines") view=TeamFinesPage />
