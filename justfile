@@ -20,5 +20,5 @@ check:
     cargo clippy -p footical-website --no-default-features --features ssr \
         --all-targets -- --deny warnings
     cargo clippy -p footical-website --lib --no-default-features --features hydrate \
-        --target wasm32-unknown-unknown --target-dir target/front \
+        --target wasm32-unknown-unknown --target-dir target/check \
         -- --deny warnings

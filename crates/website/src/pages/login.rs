@@ -1,7 +1,13 @@
+#![expect(
+    clippy::mem_forget,
+    reason = "the island macro forgets the render state it built on the server"
+)]
+
+use crate::components::browser_navigation::navigate_to;
 use crate::server::auth::login;
 use leptos::prelude::*;
 
-#[component]
+#[island]
 pub fn LoginPage() -> impl IntoView {
     let password = RwSignal::new(String::new());
     let error_message = RwSignal::new(Option::<String>::None);
@@ -15,10 +21,7 @@ pub fn LoginPage() -> impl IntoView {
 
         leptos::task::spawn_local(async move {
             match login(password_value).await {
-                Ok(()) => {
-                    let navigate = leptos_router::hooks::use_navigate();
-                    navigate("/admin", Default::default());
-                }
+                Ok(()) => navigate_to("/admin"),
                 Err(error) => {
                     error_message.set(Some(error.to_string()));
                     is_submitting.set(false);

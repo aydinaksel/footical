@@ -1,8 +1,13 @@
+#![expect(
+    clippy::mem_forget,
+    reason = "the island macro forgets the render state it built on the server"
+)]
+
 use crate::components::admin_only::AdminOnly;
+use crate::components::browser_navigation::navigate_to;
 use crate::server::auth::Logout;
 use crate::server::scraper::{get_scrape_status, ScrapeStatus, TriggerScrape};
 use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
@@ -14,7 +19,7 @@ pub fn AdminPage() -> impl IntoView {
     .into_any()
 }
 
-#[component]
+#[island]
 fn ScraperDashboard() -> impl IntoView {
     let trigger_scrape = ServerAction::<TriggerScrape>::new();
     let logout = ServerAction::<Logout>::new();
@@ -25,7 +30,7 @@ fn ScraperDashboard() -> impl IntoView {
 
     Effect::new(move |_| {
         if matches!(logout.value().get(), Some(Ok(()))) {
-            use_navigate()("/admin/login", Default::default());
+            navigate_to("/admin/login");
         }
     });
 

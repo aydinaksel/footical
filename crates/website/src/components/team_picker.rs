@@ -1,14 +1,20 @@
+#![expect(
+    clippy::mem_forget,
+    reason = "the island macro forgets the render state it built on the server"
+)]
+
+use crate::components::browser_navigation::reload_page;
 use crate::server::data::search_teams;
-use crate::tracked_team::{use_tracked_team, TrackedTeam};
+use crate::tracked_team::use_tracked_team;
 use crate::types::TeamListing;
 use leptos::prelude::*;
 use leptos_use::{on_click_outside, signal_debounced};
 
 const SEARCH_DEBOUNCE_MILLISECONDS: f64 = 200.0;
 
-#[component]
+#[island]
 pub fn TeamPicker() -> impl IntoView {
-    let TrackedTeam { set_team_id, .. } = use_tracked_team();
+    let set_team_id = use_tracked_team().set_team_id;
 
     let query = RwSignal::new(String::new());
     let is_open = RwSignal::new(false);
@@ -60,8 +66,7 @@ pub fn TeamPicker() -> impl IntoView {
                                                 team=team
                                                 on_pick=move |picked: TeamListing| {
                                                     set_team_id.set(Some(picked.team_id));
-                                                    query.set(picked.team_name);
-                                                    is_open.set(false);
+                                                    reload_page();
                                                 }
                                             />
                                         }

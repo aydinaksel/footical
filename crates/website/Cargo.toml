@@ -12,7 +12,7 @@ path = "src/main.rs"
 required-features = ["ssr"]
 
 [dependencies]
-leptos = { version = "0.8" }
+leptos = { version = "0.8", features = ["islands"] }
 leptos_router = { version = "0.8" }
 leptos_meta = { version = "0.8" }
 serde = { version = "1", features = ["derive"] }
@@ -35,6 +35,7 @@ footical-secrets = { path = "../secrets", optional = true }
 
 # Hydrate
 wasm-bindgen = { version = "=0.2.121", optional = true }
+web-sys = { version = "0.3", features = ["Location", "Window"], optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
 [features]
@@ -60,6 +61,7 @@ hydrate = [
     "leptos/hydrate",
     "dep:wasm-bindgen",
     "dep:console_error_panic_hook",
+    "dep:web-sys",
 ]
 
 [lints]

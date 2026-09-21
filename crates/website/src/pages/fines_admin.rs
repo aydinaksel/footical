@@ -1,6 +1,11 @@
+#![expect(
+    clippy::mem_forget,
+    reason = "the island macro forgets the render state it built on the server"
+)]
+
 use crate::components::admin_only::AdminOnly;
 use crate::components::searchable_select::{SearchableSelect, SelectOption};
-use crate::components::toast::use_toaster;
+use crate::components::status_message::{StatusLine, StatusMessage};
 use crate::server::squad::{
     get_fine_types, get_recent_entries, get_squad_players, DeleteEntry, RecordFine, RecordPayment,
 };
@@ -43,7 +48,7 @@ pub fn FinesAdminPage() -> impl IntoView {
     .into_any()
 }
 
-#[component]
+#[island]
 fn FinesAdminForms() -> impl IntoView {
     let players = Resource::new_blocking(|| (), |_| get_squad_players());
     let fine_types = Resource::new_blocking(|| (), |_| get_fine_types());
@@ -204,7 +209,7 @@ fn RecordFineForm(
     tariff: Vec<FineType>,
     record_fine: ServerAction<RecordFine>,
 ) -> impl IntoView {
-    let toaster = use_toaster();
+    let status = RwSignal::new(Option::<StatusMessage>::None);
     let selected_player = RwSignal::new(Option::<i32>::None);
     let selected_fine_type = RwSignal::new(Option::<i32>::None);
     let note = RwSignal::new(String::new());
@@ -234,15 +239,11 @@ fn RecordFineForm(
         event.prevent_default();
 
         let Some(squad_player_id) = selected_player.get() else {
-            if let Some(toaster) = toaster {
-                toaster.show_error("Pick a player.");
-            }
+            status.set(Some(StatusMessage::failure("Pick a player.")));
             return;
         };
         let Some(fine_type_id) = selected_fine_type.get() else {
-            if let Some(toaster) = toaster {
-                toaster.show_error("Pick a fine.");
-            }
+            status.set(Some(StatusMessage::failure("Pick a fine.")));
             return;
         };
 
@@ -255,25 +256,20 @@ fn RecordFineForm(
 
     Effect::new(move |_| match record_fine.value().get() {
         Some(Ok(())) => {
-            if let Some(toaster) = toaster {
-                toaster.show("Fine recorded");
-            }
+            status.set(Some(StatusMessage::confirmation("Fine recorded")));
             note.set(String::new());
             selected_player.set(None);
             selected_fine_type.set(None);
             reset_fields.update(|generation| *generation = generation.wrapping_add(1));
         }
-        Some(Err(error)) => {
-            if let Some(toaster) = toaster {
-                toaster.show_error(error.to_string());
-            }
-        }
+        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
         None => {}
     });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a fine"</h2>
+            <StatusLine status=status />
 
             <SearchableSelect
                 options=player_options
@@ -314,7 +310,7 @@ fn RecordPaymentForm(
     squad: Vec<SquadPlayer>,
     record_payment: ServerAction<RecordPayment>,
 ) -> impl IntoView {
-    let toaster = use_toaster();
+    let status = RwSignal::new(Option::<StatusMessage>::None);
     let selected_player = RwSignal::new(Option::<i32>::None);
     let amount_text = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
@@ -333,21 +329,19 @@ fn RecordPaymentForm(
         event.prevent_default();
 
         let Some(squad_player_id) = selected_player.get() else {
-            if let Some(toaster) = toaster {
-                toaster.show_error("Pick a player.");
-            }
+            status.set(Some(StatusMessage::failure("Pick a player.")));
             return;
         };
         let Some(amount_pence) = parse_pounds_to_pence(&amount_text.get()) else {
-            if let Some(toaster) = toaster {
-                toaster.show_error("Amount must look like 5 or 5.50.");
-            }
+            status.set(Some(StatusMessage::failure(
+                "Amount must look like 5 or 5.50.",
+            )));
             return;
         };
         if amount_pence == 0 {
-            if let Some(toaster) = toaster {
-                toaster.show_error("Amount must be more than zero.");
-            }
+            status.set(Some(StatusMessage::failure(
+                "Amount must be more than zero.",
+            )));
             return;
         }
 
@@ -361,28 +355,23 @@ fn RecordPaymentForm(
 
     Effect::new(move |_| match record_payment.value().get() {
         Some(Ok(())) => {
-            if let Some(toaster) = toaster {
-                toaster.show(format!(
-                    "Payment of {} recorded",
-                    format_pence(last_amount_pence.get_untracked()),
-                ));
-            }
+            status.set(Some(StatusMessage::confirmation(format!(
+                "Payment of {} recorded",
+                format_pence(last_amount_pence.get_untracked()),
+            ))));
             amount_text.set(String::new());
             reset_fields.update(|generation| *generation = generation.wrapping_add(1));
             note.set(String::new());
             selected_player.set(None);
         }
-        Some(Err(error)) => {
-            if let Some(toaster) = toaster {
-                toaster.show_error(error.to_string());
-            }
-        }
+        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
         None => {}
     });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a payment"</h2>
+            <StatusLine status=status />
 
             <SearchableSelect
                 options=player_options

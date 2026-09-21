@@ -1,5 +1,10 @@
+#![expect(
+    clippy::mem_forget,
+    reason = "the island macro forgets the render state it built on the server"
+)]
+
 use crate::components::admin_only::AdminOnly;
-use crate::components::toast::use_toaster;
+use crate::components::status_message::{StatusLine, StatusMessage};
 use crate::server::squad::{get_squad_roster, SetPlayerActive};
 use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
@@ -14,9 +19,9 @@ pub fn SquadAdminPage() -> impl IntoView {
     .into_any()
 }
 
-#[component]
+#[island]
 fn SquadRoster() -> impl IntoView {
-    let toaster = use_toaster();
+    let status = RwSignal::new(Option::<StatusMessage>::None);
     let set_player_active = ServerAction::<SetPlayerActive>::new();
     let roster = Resource::new(
         move || set_player_active.version().get(),
@@ -25,21 +30,18 @@ fn SquadRoster() -> impl IntoView {
 
     let last_toggle_made_active = RwSignal::new(false);
 
-    Effect::new(move |_| {
-        let Some(toaster) = toaster else {
-            return;
-        };
-        match set_player_active.value().get() {
-            Some(Ok(())) => {
-                toaster.show(if last_toggle_made_active.get_untracked() {
+    Effect::new(move |_| match set_player_active.value().get() {
+        Some(Ok(())) => {
+            status.set(Some(StatusMessage::confirmation(
+                if last_toggle_made_active.get_untracked() {
                     "Player shown"
                 } else {
                     "Player hidden"
-                });
-            }
-            Some(Err(error)) => toaster.show_error(error.to_string()),
-            None => {}
+                },
+            )));
         }
+        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
+        None => {}
     });
 
     let on_toggle = move |squad_player_id: i32, make_active: bool| {
@@ -69,6 +71,8 @@ fn SquadRoster() -> impl IntoView {
                     "Hidden players stay out of the fines table and the admin dropdowns. \
                      Their fines and payments are kept."
                 </p>
+
+                <StatusLine status=status />
 
                 <Transition fallback=move || {
                     view! {

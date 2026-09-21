@@ -1,3 +1,4 @@
+use crate::components::team_controls::ChangeTeamButton;
 use crate::components::team_picker::TeamPicker;
 use crate::server::data::{get_team_fixtures, get_team_listing};
 use crate::tracked_team::{use_tracked_team, TrackedTeam};
@@ -70,7 +71,6 @@ fn FixturesUnavailable() -> impl IntoView {
 
 #[component]
 fn TeamFixtures(team: TeamListing) -> impl IntoView {
-    let TrackedTeam { set_team_id, .. } = use_tracked_team();
     let team_id = team.team_id;
     let upcoming_fixtures = Resource::new_blocking(move || team_id, get_team_fixtures);
 
@@ -83,12 +83,7 @@ fn TeamFixtures(team: TeamListing) -> impl IntoView {
                     </p>
                     <h1 class="text-xl font-bold text-gray-800 mt-0.5">{team.team_name}</h1>
                 </div>
-                <button
-                    class="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-0.5 cursor-pointer"
-                    on:click=move |_| set_team_id.set(None)
-                >
-                    "Change team"
-                </button>
+                <ChangeTeamButton />
             </div>
             <Suspense fallback=|| ()>
                 {move || Suspend::new(async move {

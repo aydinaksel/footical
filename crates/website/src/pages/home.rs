@@ -1,10 +1,10 @@
+use crate::components::team_controls::{ChangeTeamButton, CopyCalendarLinkButton};
 use crate::components::team_picker::TeamPicker;
 use crate::server::data::get_team_listing;
 use crate::tracked_team::{use_tracked_team, TrackedTeam};
 use crate::types::TeamListing;
 use crate::CALENDAR_HOST;
 use leptos::prelude::*;
-use leptos_use::{use_clipboard, UseClipboardReturn};
 
 #[component]
 pub fn Home() -> impl IntoView {
@@ -72,14 +72,6 @@ fn SubscriptionUnavailable() -> impl IntoView {
 
 #[component]
 fn SubscriptionDetails(team: TeamListing) -> impl IntoView {
-    let TrackedTeam { set_team_id, .. } = use_tracked_team();
-    let UseClipboardReturn {
-        copied: is_copied,
-        copy: copy_to_clipboard,
-        ..
-    } = use_clipboard();
-    let copy_to_clipboard = StoredValue::new(copy_to_clipboard);
-
     let calendar_url = format!("https://{CALENDAR_HOST}/{}.ics", team.team_id);
     let webcal_url = format!("webcal://{CALENDAR_HOST}/{}.ics", team.team_id);
     let google_calendar_url = format!(
@@ -97,12 +89,7 @@ fn SubscriptionDetails(team: TeamListing) -> impl IntoView {
                     </p>
                     <h1 class="text-xl font-bold text-gray-800 mt-0.5">{team.team_name}</h1>
                 </div>
-                <button
-                    class="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-0.5 cursor-pointer"
-                    on:click=move |_| set_team_id.set(None)
-                >
-                    "Change team"
-                </button>
+                <ChangeTeamButton />
             </div>
 
             <div class="px-6 py-5 border-b border-gray-100">
@@ -113,14 +100,7 @@ fn SubscriptionDetails(team: TeamListing) -> impl IntoView {
                     <span class="flex-1 text-sm text-gray-600 font-mono bg-gray-50 px-3 py-2 rounded-lg truncate">
                         {calendar_url}
                     </span>
-                    <button
-                        class="shrink-0 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors cursor-pointer"
-                        on:click=move |_| {
-                            copy_to_clipboard.with_value(|copy| copy(&copyable_url));
-                        }
-                    >
-                        {move || if is_copied.get() { "Copied!" } else { "Copy" }}
-                    </button>
+                    <CopyCalendarLinkButton calendar_url=copyable_url />
                 </div>
             </div>
 
