@@ -24,7 +24,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <title>"Footical"</title>
                 <AutoReload options=options.clone() />
-                <HydrationScripts options=options />
+                <HydrationScripts options=options islands=true />
                 <link rel="stylesheet" href="/pkg/footical-website.css" />
             </head>
             <body>
