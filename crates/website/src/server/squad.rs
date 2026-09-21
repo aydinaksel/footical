@@ -4,9 +4,7 @@ use crate::types::{
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
-fn database_pool() -> Result<sqlx::SqlitePool, ServerFnError> {
-    use_context::<sqlx::SqlitePool>().ok_or_else(|| ServerFnError::new("no database pool"))
-}
+use crate::server::database::{database_pool, report_query_failure};
 
 #[cfg(feature = "ssr")]
 async fn require_admin() -> Result<(), ServerFnError> {
@@ -42,7 +40,7 @@ pub async fn get_player_balances() -> Result<Vec<PlayerBalance>, ServerFnError> 
     )
     .fetch_all(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))
+    .map_err(|error| report_query_failure("select_player_balances", error))
 }
 
 #[server]
@@ -56,7 +54,7 @@ pub async fn get_squad_fixtures() -> Result<Vec<SquadFixture>, ServerFnError> {
     )
     .fetch_all(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))
+    .map_err(|error| report_query_failure("select_squad_fixtures", error))
 }
 
 #[server]
@@ -68,7 +66,7 @@ pub async fn get_squad_players() -> Result<Vec<SquadPlayer>, ServerFnError> {
     )
     .fetch_all(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))
+    .map_err(|error| report_query_failure("select_squad_players", error))
 }
 
 #[server]
@@ -80,7 +78,7 @@ pub async fn get_fine_types() -> Result<Vec<FineType>, ServerFnError> {
     )
     .fetch_all(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))
+    .map_err(|error| report_query_failure("select_fine_types", error))
 }
 
 #[server]
@@ -108,7 +106,7 @@ pub async fn record_fine(
     .bind(fine_type_id)
     .execute(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .map_err(|error| report_query_failure("insert_fine", error))?;
 
     if result.rows_affected() == 0 {
         return Err(ServerFnError::new("unknown fine type"));
@@ -144,7 +142,7 @@ pub async fn record_payment(
     })
     .execute(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .map_err(|error| report_query_failure("insert_payment", error))?;
 
     Ok(())
 }
@@ -186,7 +184,7 @@ pub async fn get_player_ledger(squad_player_id: i32) -> Result<Vec<LedgerEntry>,
         .bind(squad_player_id)
         .fetch_all(&pool)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))
+        .map_err(|error| report_query_failure("select_player_ledger", error))
 }
 
 #[server]
@@ -201,7 +199,7 @@ pub async fn get_recent_entries() -> Result<Vec<LedgerEntry>, ServerFnError> {
         .bind(Option::<i32>::None)
         .fetch_all(&pool)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))
+        .map_err(|error| report_query_failure("select_recent_entries", error))
 }
 
 #[server]
@@ -219,7 +217,7 @@ pub async fn delete_entry(entry_id: i32, is_payment: bool) -> Result<(), ServerF
         .bind(entry_id)
         .execute(&pool)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .map_err(|error| report_query_failure("delete_ledger_entry", error))?;
 
     if result.rows_affected() == 0 {
         return Err(ServerFnError::new("entry not found"));
@@ -252,7 +250,7 @@ pub async fn get_squad_roster() -> Result<Vec<SquadRosterEntry>, ServerFnError> 
     )
     .fetch_all(&pool)
     .await
-    .map_err(|error| ServerFnError::new(error.to_string()))
+    .map_err(|error| report_query_failure("select_squad_roster", error))
 }
 
 #[server]
@@ -265,7 +263,7 @@ pub async fn set_player_active(squad_player_id: i32, is_active: bool) -> Result<
         .bind(squad_player_id)
         .execute(&pool)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .map_err(|error| report_query_failure("update_player_active", error))?;
 
     if result.rows_affected() == 0 {
         return Err(ServerFnError::new("unknown player"));

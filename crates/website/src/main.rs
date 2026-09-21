@@ -1,11 +1,16 @@
 #[cfg(feature = "ssr")]
+const DEFAULT_LOG_FILTER: &str = "info,footical_website=debug,footical_scraper=debug";
+
+#[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use axum::Router;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
 
-    tracing_subscriber::fmt::init();
+    let log_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
+    tracing_subscriber::fmt().with_env_filter(log_filter).init();
 
     footical_secrets::inject_from_bws(&[
         ("DATABASE_URL", "aa7a6d8e-af00-4910-937e-b44900b65003"),

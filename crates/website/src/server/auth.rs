@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+#[cfg(feature = "ssr")]
+use tracing::{event, Level};
 
 #[cfg(feature = "ssr")]
 const SESSION_COOKIE_NAME: &str = "footical_session";
@@ -10,6 +12,11 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
         .ok_or_else(|| ServerFnError::new("ADMIN_PASSWORD not configured"))?;
 
     if password != expected {
+        event!(
+            name: "admin.login.rejected",
+            Level::WARN,
+            "admin login rejected: wrong password",
+        );
         return Err(ServerFnError::new("invalid password"));
     }
 
@@ -27,6 +34,12 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
         axum::http::HeaderName::from_static("set-cookie"),
         axum::http::HeaderValue::from_str(&cookie)
             .map_err(|error| ServerFnError::new(error.to_string()))?,
+    );
+
+    event!(
+        name: "admin.login.success",
+        Level::INFO,
+        "admin signed in",
     );
 
     Ok(())
