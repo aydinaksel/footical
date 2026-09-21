@@ -256,10 +256,7 @@ pub async fn get_squad_roster() -> Result<Vec<SquadRosterEntry>, ServerFnError> 
 }
 
 #[server]
-pub async fn set_player_active(
-    squad_player_id: i32,
-    is_active: bool,
-) -> Result<(), ServerFnError> {
+pub async fn set_player_active(squad_player_id: i32, is_active: bool) -> Result<(), ServerFnError> {
     require_admin().await?;
     let pool = database_pool()?;
 

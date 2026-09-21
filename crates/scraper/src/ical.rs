@@ -4,7 +4,10 @@ use sqlx::SqlitePool;
 const FIXTURE_DURATION_MINUTES: i64 = 35;
 
 #[derive(sqlx::FromRow)]
-#[expect(dead_code, reason = "sqlx::FromRow populates every column; not all are read")]
+#[expect(
+    dead_code,
+    reason = "sqlx::FromRow populates every column; not all are read"
+)]
 struct FixtureRow {
     fixture_id: i32,
     home_team_id: i32,
@@ -72,10 +75,7 @@ fn build_ical(
     output.push_str("PRODID:-//footical.club//Footical//EN\r\n");
     output.push_str("CALSCALE:GREGORIAN\r\n");
     output.push_str("METHOD:PUBLISH\r\n");
-    push_folded(
-        &mut output,
-        &format!("X-WR-CALNAME:{} Fixtures", team_name),
-    );
+    push_folded(&mut output, &format!("X-WR-CALNAME:{} Fixtures", team_name));
     output.push_str("BEGIN:VTIMEZONE\r\n");
     output.push_str("TZID:Europe/London\r\n");
     output.push_str("BEGIN:STANDARD\r\n");
@@ -120,10 +120,7 @@ fn build_ical(
             &mut output,
             &format!("DTSTART;TZID=Europe/London:{}", start),
         );
-        push_folded(
-            &mut output,
-            &format!("DTEND;TZID=Europe/London:{}", end),
-        );
+        push_folded(&mut output, &format!("DTEND;TZID=Europe/London:{}", end));
         let opponent_name = if fixture.home_team_id == team_id {
             escape_ical_text(&fixture.away_team_name)
         } else {
@@ -136,10 +133,7 @@ fn build_ical(
                 &format!("LOCATION:{}", escape_ical_text(address)),
             );
         } else if let Some(name) = &fixture.venue_name {
-            push_folded(
-                &mut output,
-                &format!("LOCATION:{}", escape_ical_text(name)),
-            );
+            push_folded(&mut output, &format!("LOCATION:{}", escape_ical_text(name)));
         }
         push_folded(&mut output, &format!("STATUS:{}", ical_status));
         output.push_str("END:VEVENT\r\n");

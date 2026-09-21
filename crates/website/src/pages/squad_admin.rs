@@ -1,7 +1,7 @@
 use crate::components::toast::use_toaster;
 use crate::server::auth::check_auth;
 use crate::server::squad::{get_squad_roster, set_player_active};
-use crate::types::{SquadRosterEntry, format_pence};
+use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
 
 #[component]
@@ -11,14 +11,13 @@ pub fn SquadAdminPage() -> impl IntoView {
     view! {
         {move || match auth_resource.get() {
             Some(Ok(true)) => view! { <SquadRoster /> }.into_any(),
-            Some(_) => view! {
-                <leptos_router::components::Redirect path="/admin/login" />
+            Some(_) => {
+                view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any()
             }
-            .into_any(),
-            None => view! {
-                <p class="text-sm text-gray-400 text-center py-16">"Checking auth…"</p>
+            None => {
+                view! { <p class="text-sm text-gray-400 text-center py-16">"Checking auth…"</p> }
+                    .into_any()
             }
-            .into_any(),
         }}
     }
     .into_any()
@@ -35,7 +34,11 @@ fn SquadRoster() -> impl IntoView {
             match set_player_active(squad_player_id, make_active).await {
                 Ok(()) => {
                     if let Some(toaster) = toaster {
-                        toaster.show(if make_active { "Player shown" } else { "Player hidden" });
+                        toaster.show(if make_active {
+                            "Player shown"
+                        } else {
+                            "Player hidden"
+                        });
                     }
                     roster_version.update(|version| *version = version.wrapping_add(1));
                 }
@@ -68,14 +71,19 @@ fn SquadRoster() -> impl IntoView {
                      Their fines and payments are kept."
                 </p>
 
-                <Transition fallback=move || view! {
-                    <p class="text-sm text-gray-400 text-center py-8">"Loading squad…"</p>
+                <Transition fallback=move || {
+                    view! {
+                        <p class="text-sm text-gray-400 text-center py-8">"Loading squad…"</p>
+                    }
                 }>
                     {move || {
                         let players = roster.get()?.ok()?;
-                        Some(roster_view(players, Callback::new(move |(id, active)| {
-                            on_toggle(id, active)
-                        })))
+                        Some(
+                            roster_view(
+                                players,
+                                Callback::new(move |(id, active)| { on_toggle(id, active) }),
+                            ),
+                        )
                     }}
                 </Transition>
             </div>
@@ -96,60 +104,64 @@ fn roster_view(players: Vec<SquadRosterEntry>, on_toggle: Callback<(i32, bool)>)
     view! {
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-baseline justify-between gap-4">
-                <h2 class="font-bold text-gray-800">
-                    {format!("{active_count} shown")}
-                </h2>
+                <h2 class="font-bold text-gray-800">{format!("{active_count} shown")}</h2>
                 <p class="text-sm text-gray-500">{format!("{hidden_count} hidden")}</p>
             </div>
 
-            {(hidden_owing > 0).then(|| view! {
-                <p class="px-6 py-3 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
-                    {format!(
-                        "{} is owed by hidden players and is not counted in the fines total.",
-                        format_pence(hidden_owing),
-                    )}
-                </p>
-            }.into_any())}
+            {(hidden_owing > 0)
+                .then(|| {
+                    view! {
+                        <p class="px-6 py-3 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
+                            {format!(
+                                "{} is owed by hidden players and is not counted in the fines total.",
+                                format_pence(hidden_owing),
+                            )}
+                        </p>
+                    }
+                        .into_any()
+                })}
 
             <ul class="divide-y divide-gray-50">
-                {players.into_iter().map(|player| {
-                    let squad_player_id = player.squad_player_id;
-                    let is_active = player.is_active;
-                    let owes = player.balance_pence > 0;
-                    view! {
-                        <li class="px-6 py-2.5 flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class=if is_active {
-                                    "text-sm text-gray-800 truncate"
-                                } else {
-                                    "text-sm text-gray-400 truncate"
-                                }>
-                                    {player.name}
-                                </p>
-                            </div>
-                            <div class="flex items-center gap-3 shrink-0">
-                                <span class=if owes {
-                                    "font-mono text-sm text-red-600"
-                                } else {
-                                    "font-mono text-sm text-gray-300"
-                                }>
-                                    {format_pence(player.balance_pence)}
-                                </span>
-                                <button
-                                    type="button"
-                                    class=if is_active {
-                                        "text-xs text-gray-400 hover:text-gray-700 cursor-pointer w-10 text-right"
+                {players
+                    .into_iter()
+                    .map(|player| {
+                        let squad_player_id = player.squad_player_id;
+                        let is_active = player.is_active;
+                        let owes = player.balance_pence > 0;
+                        view! {
+                            <li class="px-6 py-2.5 flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class=if is_active {
+                                        "text-sm text-gray-800 truncate"
                                     } else {
-                                        "text-xs text-blue-600 hover:text-blue-700 cursor-pointer w-10 text-right"
-                                    }
-                                    on:click=move |_| on_toggle.run((squad_player_id, !is_active))
-                                >
-                                    {if is_active { "Hide" } else { "Show" }}
-                                </button>
-                            </div>
-                        </li>
-                    }.into_any()
-                }).collect_view()}
+                                        "text-sm text-gray-400 truncate"
+                                    }>{player.name}</p>
+                                </div>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <span class=if owes {
+                                        "font-mono text-sm text-red-600"
+                                    } else {
+                                        "font-mono text-sm text-gray-300"
+                                    }>{format_pence(player.balance_pence)}</span>
+                                    <button
+                                        type="button"
+                                        class=if is_active {
+                                            "text-xs text-gray-400 hover:text-gray-700 cursor-pointer w-10 text-right"
+                                        } else {
+                                            "text-xs text-blue-600 hover:text-blue-700 cursor-pointer w-10 text-right"
+                                        }
+                                        on:click=move |_| {
+                                            on_toggle.run((squad_player_id, !is_active))
+                                        }
+                                    >
+                                        {if is_active { "Hide" } else { "Show" }}
+                                    </button>
+                                </div>
+                            </li>
+                        }
+                            .into_any()
+                    })
+                    .collect_view()}
             </ul>
         </div>
     }

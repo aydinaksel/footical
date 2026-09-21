@@ -6,7 +6,7 @@ mod parse;
 use std::collections::HashSet;
 
 use sqlx::SqlitePool;
-use tracing::{Level, event};
+use tracing::{event, Level};
 
 const BASE_URL: &str = "https://footballmundial.com";
 
@@ -91,8 +91,10 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
     let mut all_league_ids_with_division_source_key: Vec<(String, String)> = Vec::new();
 
     for league_group in &all_league_groups {
-        let league_source_key =
-            format!("{BASE_URL}/info/leaguegroups/{}", league_group.league_group_id);
+        let league_source_key = format!(
+            "{BASE_URL}/info/leaguegroups/{}",
+            league_group.league_group_id
+        );
         let venue_endpoint = league_group
             .venue_source_key
             .as_ref()
@@ -101,14 +103,16 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
 
         ingest::upsert_league(
             pool,
-            &league_group.league_group_name,
-            league_group.day_of_week,
-            &league_source_key,
-            league_group.number_of_players,
-            league_group.starts_at.as_deref(),
-            league_group.ends_at.as_deref(),
-            league_group.price_pence,
-            &venue_endpoint,
+            &ingest::League {
+                name: &league_group.league_group_name,
+                day_of_week: league_group.day_of_week,
+                source_key: &league_source_key,
+                number_of_players: league_group.number_of_players,
+                starts_at: league_group.starts_at.as_deref(),
+                ends_at: league_group.ends_at.as_deref(),
+                price_pence: league_group.price_pence,
+                venue_source_key: &venue_endpoint,
+            },
         )
         .await?;
         leagues_upserted = leagues_upserted.saturating_add(1);
@@ -121,8 +125,13 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
                 .as_deref()
                 .unwrap_or(&league_group.league_group_name);
 
-            ingest::upsert_division(pool, division_name, &division_source_key, &league_source_key)
-                .await?;
+            ingest::upsert_division(
+                pool,
+                division_name,
+                &division_source_key,
+                &league_source_key,
+            )
+            .await?;
             divisions_upserted = divisions_upserted.saturating_add(1);
 
             all_league_ids_with_division_source_key
@@ -176,13 +185,15 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
 
             ingest::upsert_teams_and_fixture(
                 pool,
-                &fixture.mundial_home_team_name,
-                &home_team_source_key,
-                &fixture.mundial_away_team_name,
-                &away_team_source_key,
-                division_source_key,
-                &fixture.fixture_date,
-                &fixture_source_key,
+                &ingest::Fixture {
+                    home_team_name: &fixture.mundial_home_team_name,
+                    home_team_source_key: &home_team_source_key,
+                    away_team_name: &fixture.mundial_away_team_name,
+                    away_team_source_key: &away_team_source_key,
+                    division_source_key,
+                    scheduled_at: &fixture.fixture_date,
+                    source_key: &fixture_source_key,
+                },
             )
             .await?;
 
@@ -191,12 +202,9 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
             fixtures_upserted = fixtures_upserted.saturating_add(1);
         }
 
-        let stale_deleted = ingest::delete_stale_fixtures(
-            pool,
-            division_source_key,
-            &active_fixture_source_keys,
-        )
-        .await?;
+        let stale_deleted =
+            ingest::delete_stale_fixtures(pool, division_source_key, &active_fixture_source_keys)
+                .await?;
 
         stale_fixtures_deleted = stale_fixtures_deleted.saturating_add(stale_deleted);
 

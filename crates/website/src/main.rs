@@ -3,7 +3,7 @@
 async fn main() -> anyhow::Result<()> {
     use axum::Router;
     use leptos::prelude::*;
-    use leptos_axum::{LeptosRoutes, generate_route_list};
+    use leptos_axum::{generate_route_list, LeptosRoutes};
 
     tracing_subscriber::fmt::init();
 
@@ -55,7 +55,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let site_router = Router::new()
-        .route("/ical/{filename}", axum::routing::get(footical_website::server::ical::handler))
+        .route(
+            "/ical/{filename}",
+            axum::routing::get(footical_website::server::ical::handler),
+        )
         .leptos_routes_with_context(
             &app_state,
             routes,

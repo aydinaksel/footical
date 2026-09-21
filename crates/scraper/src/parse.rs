@@ -106,7 +106,10 @@ pub fn parse_league_group(html: &str, league_group_path: &str) -> anyhow::Result
     for element in document.select(&panel_title_selector) {
         let text = element.text().collect::<String>();
         if let Some(captures) = league_name_regex.captures(&text) {
-            let Some(league_name) = captures.get(1).map(|group| group.as_str().trim().to_uppercase()) else {
+            let Some(league_name) = captures
+                .get(1)
+                .map(|group| group.as_str().trim().to_uppercase())
+            else {
                 continue;
             };
             let Some(league_id) = captures.get(2).map(|group| group.as_str().to_owned()) else {
@@ -212,9 +215,8 @@ pub fn parse_venue(html: &str) -> anyhow::Result<VenueData> {
 
 pub fn parse_league_fixtures(html: &str, _league_id: &str) -> anyhow::Result<Vec<FixtureData>> {
     let document = Html::parse_document(html);
-    let group_selector = compile_selector(
-        "#fixtures_accordion_fixtures > div > div:not(.panel-heading)",
-    )?;
+    let group_selector =
+        compile_selector("#fixtures_accordion_fixtures > div > div:not(.panel-heading)")?;
     let row_selector = compile_selector("table > tbody > tr")?;
     let link_selector = compile_selector("a[href]")?;
     let date_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2}")?;
@@ -247,7 +249,12 @@ pub fn parse_league_fixtures(html: &str, _league_id: &str) -> anyhow::Result<Vec
                 .select(&link_selector)
                 .filter_map(|link| {
                     let href = link.value().attr("href")?;
-                    let team_id = team_id_regex.captures(href)?.get(1)?.as_str().parse().ok()?;
+                    let team_id = team_id_regex
+                        .captures(href)?
+                        .get(1)?
+                        .as_str()
+                        .parse()
+                        .ok()?;
                     let team_name = link.text().collect::<String>().trim().to_owned();
                     Some((team_id, team_name))
                 })

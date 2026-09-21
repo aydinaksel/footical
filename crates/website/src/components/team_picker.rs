@@ -1,4 +1,4 @@
-use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::tracked_team::{use_tracked_team, TrackedTeam};
 use crate::types::{Division, League, Team};
 use leptos::prelude::*;
 use leptos_use::on_click_outside;
@@ -76,39 +76,46 @@ pub fn TeamPicker() -> impl IntoView {
                 if !is_open.get() || filtered_options.get().is_empty() {
                     return None;
                 }
-                Some(view! {
-                    <ul class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        <For
-                            each=move || filtered_options.get()
-                            key=|option| option.team_id
-                            children=move |option| {
-                                let team_id = option.team_id;
-                                let display_name = option.team_name.clone();
-                                let context_label = format!(
-                                    "{}, {}",
-                                    option.division_name, option.league_name
-                                );
-                                let team_name = option.team_name;
-                                view! {
-                                    <li>
-                                        <button
-                                            type="button"
-                                            class="w-full text-left px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
-                                            on:click=move |_| {
-                                                set_team_id.set(Some(team_id));
-                                                query.set(team_name.clone());
-                                                is_open.set(false);
-                                            }
-                                        >
-                                            <span class="font-medium text-gray-800">{display_name}</span>
-                                            <span class="text-sm text-gray-400 ml-2">{context_label}</span>
-                                        </button>
-                                    </li>
+                Some(
+                    view! {
+                        <ul class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <For
+                                each=move || filtered_options.get()
+                                key=|option| option.team_id
+                                children=move |option| {
+                                    let team_id = option.team_id;
+                                    let display_name = option.team_name.clone();
+                                    let context_label = format!(
+                                        "{}, {}",
+                                        option.division_name,
+                                        option.league_name,
+                                    );
+                                    let team_name = option.team_name;
+                                    view! {
+                                        <li>
+                                            <button
+                                                type="button"
+                                                class="w-full text-left px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                                on:click=move |_| {
+                                                    set_team_id.set(Some(team_id));
+                                                    query.set(team_name.clone());
+                                                    is_open.set(false);
+                                                }
+                                            >
+                                                <span class="font-medium text-gray-800">
+                                                    {display_name}
+                                                </span>
+                                                <span class="text-sm text-gray-400 ml-2">
+                                                    {context_label}
+                                                </span>
+                                            </button>
+                                        </li>
+                                    }
                                 }
-                            }
-                        />
-                    </ul>
-                })
+                            />
+                        </ul>
+                    },
+                )
             }}
         </div>
     }

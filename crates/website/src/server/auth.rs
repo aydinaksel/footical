@@ -16,8 +16,7 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
     let response_options = use_context::<leptos_axum::ResponseOptions>()
         .ok_or_else(|| ServerFnError::new("no response options"))?;
 
-    let cookie_secret = std::env::var("COOKIE_SECRET")
-        .unwrap_or_else(|_| expected.clone());
+    let cookie_secret = std::env::var("COOKIE_SECRET").unwrap_or_else(|_| expected.clone());
 
     let token = generate_session_token(&cookie_secret);
     let cookie = format!(

@@ -1,10 +1,10 @@
 use bitwarden::{
-    Client,
     auth::login::AccessTokenLoginRequest,
-    secrets_manager::{SecretsClientExt, secrets::SecretGetRequest},
+    secrets_manager::{secrets::SecretGetRequest, SecretsClientExt},
+    Client,
 };
 use std::path::Path;
-use tracing::{Level, event};
+use tracing::{event, Level};
 use uuid::Uuid;
 
 const ACCESS_TOKEN_CREDENTIAL: &str = "bws-access-token";
@@ -43,10 +43,11 @@ fn find_access_token() -> Result<String, SecretsError> {
         .ok()
         .ok_or(SecretsError::CredentialsDirectoryNotFound)?;
 
-    let token = std::fs::read_to_string(Path::new(&credentials_directory).join(ACCESS_TOKEN_CREDENTIAL))
-        .map_err(|source| SecretsError::AccessTokenUnreadable { source })?
-        .trim()
-        .to_owned();
+    let token =
+        std::fs::read_to_string(Path::new(&credentials_directory).join(ACCESS_TOKEN_CREDENTIAL))
+            .map_err(|source| SecretsError::AccessTokenUnreadable { source })?
+            .trim()
+            .to_owned();
 
     if token.is_empty() {
         return Err(SecretsError::AccessTokenEmpty);

@@ -74,22 +74,29 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             <ToastHost>
-            <div class="min-h-screen bg-gray-50">
-                <Header />
-                <Routes fallback=|| "Page not found">
-                    <Route path=path!("/") view=Home />
-                    <Route path=path!("/fixtures") view=FixturesPage />
-                    <Route path=path!("/today") view=TodayPage />
-                    <Route path=path!("/team") view=|| view! { <leptos_router::components::Redirect path="/team/fixtures" /> } />
-                    <Route path=path!("/team/fixtures") view=TeamFixturesPage />
-                    <Route path=path!("/team/fines") view=TeamFinesPage />
-                    <Route path=path!("/team/player/:id") view=PlayerPage />
-                    <Route path=path!("/admin/fines") view=FinesAdminPage />
-                    <Route path=path!("/admin/squad") view=SquadAdminPage />
-                    <Route path=path!("/admin/login") view=LoginPage />
-                    <Route path=path!("/admin") view=AdminPage />
-                </Routes>
-            </div>
+                <div class="min-h-screen bg-gray-50">
+                    <Header />
+                    <Routes fallback=|| "Page not found">
+                        <Route path=path!("/") view=Home />
+                        <Route path=path!("/fixtures") view=FixturesPage />
+                        <Route path=path!("/today") view=TodayPage />
+                        <Route
+                            path=path!("/team")
+                            view=|| {
+                                view! {
+                                    <leptos_router::components::Redirect path="/team/fixtures" />
+                                }
+                            }
+                        />
+                        <Route path=path!("/team/fixtures") view=TeamFixturesPage />
+                        <Route path=path!("/team/fines") view=TeamFinesPage />
+                        <Route path=path!("/team/player/:id") view=PlayerPage />
+                        <Route path=path!("/admin/fines") view=FinesAdminPage />
+                        <Route path=path!("/admin/squad") view=SquadAdminPage />
+                        <Route path=path!("/admin/login") view=LoginPage />
+                        <Route path=path!("/admin") view=AdminPage />
+                    </Routes>
+                </div>
             </ToastHost>
         </Router>
     }

@@ -1,5 +1,5 @@
 use crate::server::squad::{get_player_balances, get_squad_fixtures};
-use crate::types::{PlayerBalance, SquadFixture, format_pence};
+use crate::types::{format_pence, PlayerBalance, SquadFixture};
 use leptos::prelude::*;
 use leptos_router::components::A;
 use leptos_router::hooks::use_location;
@@ -50,17 +50,26 @@ pub fn TeamFixturesPage() -> impl IntoView {
 
     view! {
         <TeamLayout>
-            <Suspense fallback=move || view! {
-                <p class="text-sm text-gray-400 py-8 text-center">"Loading fixtures…"</p>
+            <Suspense fallback=move || {
+                view! {
+                    <p class="text-sm text-gray-400 py-8 text-center">"Loading fixtures…"</p>
+                }
             }>
-                {move || fixtures.get().map(|result| match result {
-                    Err(_) => view! {
-                        <p class="text-sm text-red-500 py-8 text-center">
-                            "Failed to load fixtures."
-                        </p>
-                    }.into_any(),
-                    Ok(fixtures) => fixture_list(fixtures),
-                })}
+                {move || {
+                    fixtures
+                        .get()
+                        .map(|result| match result {
+                            Err(_) => {
+                                view! {
+                                    <p class="text-sm text-red-500 py-8 text-center">
+                                        "Failed to load fixtures."
+                                    </p>
+                                }
+                                    .into_any()
+                            }
+                            Ok(fixtures) => fixture_list(fixtures),
+                        })
+                }}
             </Suspense>
         </TeamLayout>
     }
@@ -73,17 +82,24 @@ pub fn TeamFinesPage() -> impl IntoView {
 
     view! {
         <TeamLayout>
-            <Suspense fallback=move || view! {
-                <p class="text-sm text-gray-400 py-8 text-center">"Loading fines…"</p>
+            <Suspense fallback=move || {
+                view! { <p class="text-sm text-gray-400 py-8 text-center">"Loading fines…"</p> }
             }>
-                {move || balances.get().map(|result| match result {
-                    Err(_) => view! {
-                        <p class="text-sm text-red-500 py-8 text-center">
-                            "Failed to load fines."
-                        </p>
-                    }.into_any(),
-                    Ok(balances) => fines_table(balances),
-                })}
+                {move || {
+                    balances
+                        .get()
+                        .map(|result| match result {
+                            Err(_) => {
+                                view! {
+                                    <p class="text-sm text-red-500 py-8 text-center">
+                                        "Failed to load fines."
+                                    </p>
+                                }
+                                    .into_any()
+                            }
+                            Ok(balances) => fines_table(balances),
+                        })
+                }}
             </Suspense>
         </TeamLayout>
     }
@@ -103,39 +119,41 @@ fn fixture_list(fixtures: Vec<SquadFixture>) -> AnyView {
     view! {
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <ul class="divide-y divide-gray-100">
-                {fixtures.into_iter().map(|fixture| {
-                    let date_label = fixture.kicks_off_at.format("%a %-d %b").to_string();
-                    let time_label = fixture.kicks_off_at.format("%H:%M").to_string();
-                    let venue = fixture.venue.unwrap_or_default();
-                    let is_home = fixture.is_home;
-                    let competition = fixture.competition;
-                    let opponent = fixture.opponent;
+                {fixtures
+                    .into_iter()
+                    .map(|fixture| {
+                        let date_label = fixture.kicks_off_at.format("%a %-d %b").to_string();
+                        let time_label = fixture.kicks_off_at.format("%H:%M").to_string();
+                        let venue = fixture.venue.unwrap_or_default();
+                        let is_home = fixture.is_home;
+                        let competition = fixture.competition;
+                        let opponent = fixture.opponent;
 
-                    view! {
-                        <li class="px-6 py-4 flex items-start justify-between gap-4">
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class=if is_home {
-                                        "text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded"
-                                    } else {
-                                        "text-xs font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
-                                    }>
-                                        {if is_home { "HOME" } else { "AWAY" }}
-                                    </span>
-                                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                        {competition}
-                                    </span>
+                        view! {
+                            <li class="px-6 py-4 flex items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class=if is_home {
+                                            "text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded"
+                                        } else {
+                                            "text-xs font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                                        }>{if is_home { "HOME" } else { "AWAY" }}</span>
+                                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                            {competition}
+                                        </span>
+                                    </div>
+                                    <p class="font-medium text-gray-800 truncate">{opponent}</p>
+                                    <p class="text-xs text-gray-400 truncate mt-0.5">{venue}</p>
                                 </div>
-                                <p class="font-medium text-gray-800 truncate">{opponent}</p>
-                                <p class="text-xs text-gray-400 truncate mt-0.5">{venue}</p>
-                            </div>
-                            <div class="text-right shrink-0">
-                                <p class="font-medium text-gray-800">{time_label}</p>
-                                <p class="text-sm text-gray-400">{date_label}</p>
-                            </div>
-                        </li>
-                    }.into_any()
-                }).collect_view()}
+                                <div class="text-right shrink-0">
+                                    <p class="font-medium text-gray-800">{time_label}</p>
+                                    <p class="text-sm text-gray-400">{date_label}</p>
+                                </div>
+                            </li>
+                        }
+                            .into_any()
+                    })
+                    .collect_view()}
             </ul>
         </div>
     }
@@ -166,37 +184,41 @@ fn fines_table(balances: Vec<PlayerBalance>) -> AnyView {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
-                        {balances.into_iter().map(|balance| {
-                            let owes = balance.balance_pence > 0;
-                            let is_settled = balance.fines_pence == 0;
-                            view! {
-                                <tr>
-                                    <td class="px-6 py-2.5">
-                                        <a
-                                            href=format!("/team/player/{}", balance.squad_player_id)
-                                            class="text-gray-800 hover:text-blue-600"
-                                        >
-                                            {balance.name}
-                                        </a>
-                                    </td>
-                                    <td class="px-3 py-2.5 text-right text-gray-500 font-mono">
-                                        {format_pence(balance.fines_pence)}
-                                    </td>
-                                    <td class="px-3 py-2.5 text-right text-gray-500 font-mono">
-                                        {format_pence(balance.payments_pence)}
-                                    </td>
-                                    <td class=move || if owes {
-                                        "px-6 py-2.5 text-right font-mono font-semibold text-red-600"
-                                    } else if is_settled {
-                                        "px-6 py-2.5 text-right font-mono text-gray-300"
-                                    } else {
-                                        "px-6 py-2.5 text-right font-mono text-green-600"
-                                    }>
-                                        {format_pence(balance.balance_pence)}
-                                    </td>
-                                </tr>
-                            }.into_any()
-                        }).collect_view()}
+                        {balances
+                            .into_iter()
+                            .map(|balance| {
+                                let owes = balance.balance_pence > 0;
+                                let is_settled = balance.fines_pence == 0;
+                                view! {
+                                    <tr>
+                                        <td class="px-6 py-2.5">
+                                            <a
+                                                href=format!("/team/player/{}", balance.squad_player_id)
+                                                class="text-gray-800 hover:text-blue-600"
+                                            >
+                                                {balance.name}
+                                            </a>
+                                        </td>
+                                        <td class="px-3 py-2.5 text-right text-gray-500 font-mono">
+                                            {format_pence(balance.fines_pence)}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-right text-gray-500 font-mono">
+                                            {format_pence(balance.payments_pence)}
+                                        </td>
+                                        <td class=move || {
+                                            if owes {
+                                                "px-6 py-2.5 text-right font-mono font-semibold text-red-600"
+                                            } else if is_settled {
+                                                "px-6 py-2.5 text-right font-mono text-gray-300"
+                                            } else {
+                                                "px-6 py-2.5 text-right font-mono text-green-600"
+                                            }
+                                        }>{format_pence(balance.balance_pence)}</td>
+                                    </tr>
+                                }
+                                    .into_any()
+                            })
+                            .collect_view()}
                     </tbody>
                     <tfoot class="border-t border-gray-200">
                         <tr class="font-semibold text-gray-800">

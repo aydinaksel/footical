@@ -13,10 +13,10 @@ pub struct ScrapeStatus {
 
 #[server]
 pub async fn trigger_scrape() -> Result<(), ServerFnError> {
-    let pool = use_context::<sqlx::SqlitePool>()
-        .ok_or_else(|| ServerFnError::new("no database pool"))?;
-    let scrape_state = use_context::<ScrapeStateHandle>()
-        .ok_or_else(|| ServerFnError::new("no scrape state"))?;
+    let pool =
+        use_context::<sqlx::SqlitePool>().ok_or_else(|| ServerFnError::new("no database pool"))?;
+    let scrape_state =
+        use_context::<ScrapeStateHandle>().ok_or_else(|| ServerFnError::new("no scrape state"))?;
     {
         let state = scrape_state.read().await;
         if state.is_running {
@@ -31,8 +31,7 @@ pub async fn trigger_scrape() -> Result<(), ServerFnError> {
 
     let scrape_state_clone = scrape_state.clone();
     tokio::spawn(async move {
-        let result =
-            footical_scraper::run_scrape(&pool).await;
+        let result = footical_scraper::run_scrape(&pool).await;
 
         let mut state = scrape_state_clone.write().await;
         state.is_running = false;
@@ -68,8 +67,8 @@ pub async fn trigger_scrape() -> Result<(), ServerFnError> {
 
 #[server]
 pub async fn get_scrape_status() -> Result<ScrapeStatus, ServerFnError> {
-    let scrape_state = use_context::<ScrapeStateHandle>()
-        .ok_or_else(|| ServerFnError::new("no scrape state"))?;
+    let scrape_state =
+        use_context::<ScrapeStateHandle>().ok_or_else(|| ServerFnError::new("no scrape state"))?;
 
     let state = scrape_state.read().await;
 

@@ -1,5 +1,5 @@
 use crate::components::team_picker::TeamPicker;
-use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::tracked_team::{use_tracked_team, TrackedTeam};
 use crate::types::{Fixture, Team};
 use leptos::prelude::*;
 
@@ -7,12 +7,18 @@ use leptos::prelude::*;
 pub fn FixturesPage() -> impl IntoView {
     let all_teams = use_context::<RwSignal<Vec<Team>>>().unwrap_or_default();
     let all_fixtures = use_context::<RwSignal<Vec<Fixture>>>().unwrap_or_default();
-    let TrackedTeam { team_id: tracked_team_id, set_team_id } = use_tracked_team();
+    let TrackedTeam {
+        team_id: tracked_team_id,
+        set_team_id,
+    } = use_tracked_team();
     let is_data_loaded = use_context::<RwSignal<bool>>().unwrap_or_default();
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
-            all_teams.get().into_iter().find(|team| team.team_id == team_id)
+            all_teams
+                .get()
+                .into_iter()
+                .find(|team| team.team_id == team_id)
         })
     });
 
@@ -44,11 +50,11 @@ pub fn FixturesPage() -> impl IntoView {
                             <div class="flex justify-center py-16">
                                 <p class="text-sm text-gray-400">"Loading…"</p>
                             </div>
-                        }.into_any();
+                        }
+                            .into_any();
                     }
-
                     if tracked_team.get().is_none() {
-                        return view! {
+                        let team_picker_prompt = view! {
                             <div class="bg-white rounded-xl shadow-md p-8 space-y-6">
                                 <div>
                                     <h1 class="text-2xl font-bold text-gray-800">"My Team"</h1>
@@ -58,7 +64,8 @@ pub fn FixturesPage() -> impl IntoView {
                                 </div>
                                 <TeamPicker />
                             </div>
-                        }.into_any();
+                        };
+                        return team_picker_prompt.into_any();
                     }
 
                     view! {
@@ -87,7 +94,8 @@ pub fn FixturesPage() -> impl IntoView {
                                         <p class="text-sm text-gray-400 text-center py-12">
                                             "No upcoming fixtures."
                                         </p>
-                                    }.into_any();
+                                    }
+                                        .into_any();
                                 }
 
                                 view! {
@@ -103,8 +111,14 @@ pub fn FixturesPage() -> impl IntoView {
                                                 } else {
                                                     fixture.home_team_name.clone()
                                                 };
-                                                let date_label = fixture.scheduled_at.format("%a %-d %b").to_string();
-                                                let time_label = fixture.scheduled_at.format("%H:%M").to_string();
+                                                let date_label = fixture
+                                                    .scheduled_at
+                                                    .format("%a %-d %b")
+                                                    .to_string();
+                                                let time_label = fixture
+                                                    .scheduled_at
+                                                    .format("%H:%M")
+                                                    .to_string();
                                                 let is_not_scheduled = fixture.status != "scheduled";
                                                 let status_label = fixture.status.to_uppercase();
 
@@ -116,27 +130,23 @@ pub fn FixturesPage() -> impl IntoView {
                                                                     "text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded"
                                                                 } else {
                                                                     "text-xs font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
-                                                                }>
-                                                                    {if is_home { "HOME" } else { "AWAY" }}
-                                                                </span>
+                                                                }>{if is_home { "HOME" } else { "AWAY" }}</span>
                                                                 {if is_not_scheduled {
-                                                                    Some(view! {
-                                                                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                                                                            {status_label}
-                                                                        </span>
-                                                                    })
+                                                                    Some(
+                                                                        view! {
+                                                                            <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                                                                                {status_label}
+                                                                            </span>
+                                                                        },
+                                                                    )
                                                                 } else {
                                                                     None
                                                                 }}
                                                             </div>
-                                                            <p class="font-medium text-gray-800 truncate">
-                                                                {opponent}
-                                                            </p>
+                                                            <p class="font-medium text-gray-800 truncate">{opponent}</p>
                                                         </div>
                                                         <div class="text-right shrink-0">
-                                                            <p class="font-medium text-gray-800">
-                                                                {time_label}
-                                                            </p>
+                                                            <p class="font-medium text-gray-800">{time_label}</p>
                                                             <p class="text-sm text-gray-400">{date_label}</p>
                                                         </div>
                                                     </li>
@@ -144,10 +154,12 @@ pub fn FixturesPage() -> impl IntoView {
                                             }
                                         />
                                     </ul>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }}
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 }}
             </div>
         </main>

@@ -1,5 +1,5 @@
 use crate::server::squad::{get_player_balances, get_player_ledger};
-use crate::types::{LedgerEntry, PlayerBalance, format_pence};
+use crate::types::{format_pence, LedgerEntry, PlayerBalance};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
@@ -24,30 +24,38 @@ pub fn PlayerPage() -> impl IntoView {
     view! {
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-lg space-y-6">
-                <a href="/team/fines" class="text-sm text-blue-600 hover:text-blue-700 inline-block">
+                <a
+                    href="/team/fines"
+                    class="text-sm text-blue-600 hover:text-blue-700 inline-block"
+                >
                     "← Back to team"
                 </a>
 
-                <Suspense fallback=move || view! {
-                    <p class="text-sm text-gray-400 text-center py-16">"Loading…"</p>
+                <Suspense fallback=move || {
+                    view! { <p class="text-sm text-gray-400 text-center py-16">"Loading…"</p> }
                 }>
                     {move || {
                         let entries = ledger.get().and_then(|result| result.ok())?;
                         let all_balances = balances.get().and_then(|result| result.ok())?;
-                        let balance = player_id().and_then(|id| {
-                            all_balances
-                                .into_iter()
-                                .find(|balance| balance.squad_player_id == id)
-                        });
-                        Some(match balance {
-                            Some(balance) => player_view(balance, entries),
-                            None => view! {
-                                <p class="text-sm text-gray-400 text-center py-16">
-                                    "Player not found."
-                                </p>
-                            }
-                            .into_any(),
-                        })
+                        let balance = player_id()
+                            .and_then(|id| {
+                                all_balances
+                                    .into_iter()
+                                    .find(|balance| balance.squad_player_id == id)
+                            });
+                        Some(
+                            match balance {
+                                Some(balance) => player_view(balance, entries),
+                                None => {
+                                    view! {
+                                        <p class="text-sm text-gray-400 text-center py-16">
+                                            "Player not found."
+                                        </p>
+                                    }
+                                        .into_any()
+                                }
+                            },
+                        )
                     }}
                 </Suspense>
             </div>
@@ -68,9 +76,7 @@ fn player_view(balance: PlayerBalance, entries: Vec<LedgerEntry>) -> AnyView {
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                             "Fines"
                         </p>
-                        <p class="font-mono text-gray-800">
-                            {format_pence(balance.fines_pence)}
-                        </p>
+                        <p class="font-mono text-gray-800">{format_pence(balance.fines_pence)}</p>
                     </div>
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -88,9 +94,7 @@ fn player_view(balance: PlayerBalance, entries: Vec<LedgerEntry>) -> AnyView {
                             "font-mono font-semibold text-red-600"
                         } else {
                             "font-mono text-gray-400"
-                        }>
-                            {format_pence(balance.balance_pence)}
-                        </p>
+                        }>{format_pence(balance.balance_pence)}</p>
                     </div>
                 </div>
             </div>
@@ -99,14 +103,14 @@ fn player_view(balance: PlayerBalance, entries: Vec<LedgerEntry>) -> AnyView {
                 view! {
                     <p class="text-sm text-gray-400 text-center py-12">"Nothing recorded yet."</p>
                 }
-                .into_any()
+                    .into_any()
             } else {
                 view! {
                     <ul class="divide-y divide-gray-50">
                         {entries.into_iter().map(entry_row).collect_view()}
                     </ul>
                 }
-                .into_any()
+                    .into_any()
             }}
         </div>
     }

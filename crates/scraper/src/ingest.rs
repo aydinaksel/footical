@@ -22,17 +22,28 @@ pub async fn upsert_venue(
     Ok(())
 }
 
-pub async fn upsert_league(
-    pool: &SqlitePool,
-    name: &str,
-    day_of_week: Option<i32>,
-    source_key: &str,
-    number_of_players: Option<i32>,
-    starts_at: Option<&str>,
-    ends_at: Option<&str>,
-    price_pence: Option<i32>,
-    venue_source_key: &str,
-) -> anyhow::Result<()> {
+pub struct League<'a> {
+    pub name: &'a str,
+    pub day_of_week: Option<i32>,
+    pub source_key: &'a str,
+    pub number_of_players: Option<i32>,
+    pub starts_at: Option<&'a str>,
+    pub ends_at: Option<&'a str>,
+    pub price_pence: Option<i32>,
+    pub venue_source_key: &'a str,
+}
+
+pub async fn upsert_league(pool: &SqlitePool, league: &League<'_>) -> anyhow::Result<()> {
+    let League {
+        name,
+        day_of_week,
+        source_key,
+        number_of_players,
+        starts_at,
+        ends_at,
+        price_pence,
+        venue_source_key,
+    } = league;
     sqlx::query(
         "INSERT INTO league (organisation_id, venue_id, name, day_of_week, source_key,
                              number_of_players, starts_at, ends_at, price_pence)
@@ -109,24 +120,46 @@ async fn upsert_team(
     Ok(team_id)
 }
 
+pub struct Fixture<'a> {
+    pub home_team_name: &'a str,
+    pub home_team_source_key: &'a str,
+    pub away_team_name: &'a str,
+    pub away_team_source_key: &'a str,
+    pub division_source_key: &'a str,
+    pub scheduled_at: &'a str,
+    pub source_key: &'a str,
+}
+
 pub async fn upsert_teams_and_fixture(
     pool: &SqlitePool,
-    home_team_name: &str,
-    home_team_source_key: &str,
-    away_team_name: &str,
-    away_team_source_key: &str,
-    division_source_key: &str,
-    scheduled_at: &str,
-    fixture_source_key: &str,
+    fixture: &Fixture<'_>,
 ) -> anyhow::Result<()> {
+    let Fixture {
+        home_team_name,
+        home_team_source_key,
+        away_team_name,
+        away_team_source_key,
+        division_source_key,
+        scheduled_at,
+        source_key: fixture_source_key,
+    } = fixture;
+
     let mut transaction = pool.begin().await?;
 
-    let home_team_id =
-        upsert_team(&mut transaction, division_source_key, home_team_name, home_team_source_key)
-            .await?;
-    let away_team_id =
-        upsert_team(&mut transaction, division_source_key, away_team_name, away_team_source_key)
-            .await?;
+    let home_team_id = upsert_team(
+        &mut transaction,
+        division_source_key,
+        home_team_name,
+        home_team_source_key,
+    )
+    .await?;
+    let away_team_id = upsert_team(
+        &mut transaction,
+        division_source_key,
+        away_team_name,
+        away_team_source_key,
+    )
+    .await?;
 
     sqlx::query(
         "INSERT INTO fixture (division_id, home_team_id, away_team_id, scheduled_at, source_key)
@@ -167,8 +200,7 @@ pub async fn delete_stale_fixtures(
         return Ok(result.rows_affected());
     }
 
-    let placeholders = std::iter::repeat("?")
-        .take(active_fixture_source_keys.len())
+    let placeholders = std::iter::repeat_n("?", active_fixture_source_keys.len())
         .collect::<Vec<_>>()
         .join(", ");
     let statement = format!(

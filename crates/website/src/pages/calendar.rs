@@ -44,9 +44,7 @@ pub fn CalendarPage() -> impl IntoView {
                     >
                         "‹"
                     </button>
-                    <h2 class="text-lg font-semibold text-gray-800">
-                        {month_title}
-                    </h2>
+                    <h2 class="text-lg font-semibold text-gray-800">{month_title}</h2>
                     <button
                         class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 text-xl leading-none"
                         on:click=go_to_next_month
@@ -58,13 +56,14 @@ pub fn CalendarPage() -> impl IntoView {
                 <div class="grid grid-cols-7">
                     {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
                         .iter()
-                        .map(|day_name| view! {
-                            <div class="text-center text-xs font-medium text-gray-400 py-2">
-                                {*day_name}
-                            </div>
+                        .map(|day_name| {
+                            view! {
+                                <div class="text-center text-xs font-medium text-gray-400 py-2">
+                                    {*day_name}
+                                </div>
+                            }
                         })
-                        .collect_view()
-                    }
+                        .collect_view()}
                 </div>
 
                 <div class="grid grid-cols-7">
@@ -78,23 +77,24 @@ pub fn CalendarPage() -> impl IntoView {
                         } else {
                             NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap()
                         })
-                        .signed_duration_since(first_day)
-                        .num_days() as u32;
-
+                            .signed_duration_since(first_day)
+                            .num_days() as u32;
                         let mut cells: Vec<Option<u32>> = vec![None; weekday_offset];
                         cells.extend((1..=days_in_month).map(Some));
                         while cells.len() % 7 != 0 {
                             cells.push(None);
                         }
-
                         cells
                             .into_iter()
                             .map(|day_opt| {
-                                let is_today = day_opt.map_or(false, |day| {
-                                    year == today.year()
-                                        && month == today.month()
-                                        && day == today.day()
-                                });
+                                let is_today = day_opt
+                                    .map_or(
+                                        false,
+                                        |day| {
+                                            year == today.year() && month == today.month()
+                                                && day == today.day()
+                                        },
+                                    );
                                 let cell_class = if is_today {
                                     "flex items-center justify-center text-sm h-9 w-9 mx-auto rounded-full bg-blue-600 text-white font-semibold"
                                 } else if day_opt.is_some() {
@@ -102,10 +102,9 @@ pub fn CalendarPage() -> impl IntoView {
                                 } else {
                                     "h-9"
                                 };
+
                                 view! {
-                                    <div class=cell_class>
-                                        {day_opt.map(|day| day.to_string())}
-                                    </div>
+                                    <div class=cell_class>{day_opt.map(|day| day.to_string())}</div>
                                 }
                             })
                             .collect_view()

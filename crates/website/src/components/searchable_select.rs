@@ -64,34 +64,36 @@ pub fn SearchableSelect(
                 if !is_open.get() || matching.get().is_empty() {
                     return None;
                 }
-                Some(view! {
-                    <ul class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        <For
-                            each=move || matching.get()
-                            key=|option| option.value
-                            children=move |option| {
-                                let value = option.value;
-                                let label = option.label.clone();
-                                view! {
-                                    <li>
-                                        <button
-                                            type="button"
-                                            class="w-full text-left px-4 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0 text-sm text-gray-800"
-                                            on:click=move |_| {
-                                                selected.set(Some(value));
-                                                query.set(label.clone());
-                                                is_open.set(false);
-                                            }
-                                        >
-                                            {option.label}
-                                        </button>
-                                    </li>
+                Some(
+                    view! {
+                        <ul class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <For
+                                each=move || matching.get()
+                                key=|option| option.value
+                                children=move |option| {
+                                    let value = option.value;
+                                    let label = option.label.clone();
+                                    view! {
+                                        <li>
+                                            <button
+                                                type="button"
+                                                class="w-full text-left px-4 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0 text-sm text-gray-800"
+                                                on:click=move |_| {
+                                                    selected.set(Some(value));
+                                                    query.set(label.clone());
+                                                    is_open.set(false);
+                                                }
+                                            >
+                                                {option.label}
+                                            </button>
+                                        </li>
+                                    }
+                                        .into_any()
                                 }
-                                .into_any()
-                            }
-                        />
-                    </ul>
-                })
+                            />
+                        </ul>
+                    },
+                )
             }}
         </div>
     }

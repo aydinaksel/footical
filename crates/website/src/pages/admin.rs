@@ -1,7 +1,7 @@
 use crate::server::auth::{check_auth, logout};
-use crate::server::scraper::{ScrapeStatus, get_scrape_status, trigger_scrape};
+use crate::server::scraper::{get_scrape_status, trigger_scrape, ScrapeStatus};
 use leptos::prelude::*;
-use tracing::{Level, event};
+use tracing::{event, Level};
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
@@ -71,14 +71,24 @@ pub fn AdminPage() -> impl IntoView {
                     <div class="bg-white rounded-xl shadow-md overflow-hidden">
                         <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
                             <div>
-                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">"Admin"</p>
-                                <h1 class="text-xl font-bold text-gray-800 mt-0.5">"Scraper Dashboard"</h1>
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    "Admin"
+                                </p>
+                                <h1 class="text-xl font-bold text-gray-800 mt-0.5">
+                                    "Scraper Dashboard"
+                                </h1>
                             </div>
                             <div class="flex items-center gap-4">
-                                <a href="/admin/squad" class="text-sm text-blue-600 hover:text-blue-700">
+                                <a
+                                    href="/admin/squad"
+                                    class="text-sm text-blue-600 hover:text-blue-700"
+                                >
                                     "Squad"
                                 </a>
-                                <a href="/admin/fines" class="text-sm text-blue-600 hover:text-blue-700">
+                                <a
+                                    href="/admin/fines"
+                                    class="text-sm text-blue-600 hover:text-blue-700"
+                                >
                                     "Fines"
                                 </a>
                                 <button
@@ -92,7 +102,9 @@ pub fn AdminPage() -> impl IntoView {
 
                         <div class="px-6 py-5 border-b border-gray-100">
                             <div class="flex items-center justify-between mb-4">
-                                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">"Status"</p>
+                                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                    "Status"
+                                </p>
                                 <button
                                     class="text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
                                     on:click=on_refresh
@@ -102,56 +114,62 @@ pub fn AdminPage() -> impl IntoView {
                             </div>
                             {move || {
                                 match status_signal.get() {
-                                    Some(status) => view! {
-                                        <div class="space-y-3">
-                                            <div class="flex items-center gap-2">
-                                                <span class=if status.is_running {
-                                                    "inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse"
-                                                } else {
-                                                    "inline-block w-2 h-2 rounded-full bg-green-400"
-                                                } />
-                                                <span class="text-sm font-medium text-gray-800">
-                                                    {if status.is_running { "Running" } else { "Idle" }}
-                                                </span>
+                                    Some(status) => {
+                                        view! {
+                                            <div class="space-y-3">
+                                                <div class="flex items-center gap-2">
+                                                    <span class=if status.is_running {
+                                                        "inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse"
+                                                    } else {
+                                                        "inline-block w-2 h-2 rounded-full bg-green-400"
+                                                    } />
+                                                    <span class="text-sm font-medium text-gray-800">
+                                                        {if status.is_running { "Running" } else { "Idle" }}
+                                                    </span>
+                                                </div>
+                                                <Show when={
+                                                    let summary = status.last_result_summary.clone();
+                                                    move || summary.is_some()
+                                                }>
+                                                    <div>
+                                                        <p class="text-xs text-gray-400">"Last result"</p>
+                                                        <p class="text-sm text-gray-600">
+                                                            {status.last_result_summary.clone().unwrap_or_default()}
+                                                        </p>
+                                                    </div>
+                                                </Show>
+                                                <Show when={
+                                                    let run_at = status.last_run_at.clone();
+                                                    move || run_at.is_some()
+                                                }>
+                                                    <div>
+                                                        <p class="text-xs text-gray-400">"Last run"</p>
+                                                        <p class="text-sm text-gray-600">
+                                                            {status.last_run_at.clone().unwrap_or_default()}
+                                                        </p>
+                                                    </div>
+                                                </Show>
+                                                <Show when={
+                                                    let error = status.last_error.clone();
+                                                    move || error.is_some()
+                                                }>
+                                                    <div>
+                                                        <p class="text-xs text-red-400">"Last error"</p>
+                                                        <p class="text-sm text-red-600">
+                                                            {status.last_error.clone().unwrap_or_default()}
+                                                        </p>
+                                                    </div>
+                                                </Show>
                                             </div>
-                                            <Show when={
-                                                let summary = status.last_result_summary.clone();
-                                                move || summary.is_some()
-                                            }>
-                                                <div>
-                                                    <p class="text-xs text-gray-400">"Last result"</p>
-                                                    <p class="text-sm text-gray-600">
-                                                        {status.last_result_summary.clone().unwrap_or_default()}
-                                                    </p>
-                                                </div>
-                                            </Show>
-                                            <Show when={
-                                                let run_at = status.last_run_at.clone();
-                                                move || run_at.is_some()
-                                            }>
-                                                <div>
-                                                    <p class="text-xs text-gray-400">"Last run"</p>
-                                                    <p class="text-sm text-gray-600">
-                                                        {status.last_run_at.clone().unwrap_or_default()}
-                                                    </p>
-                                                </div>
-                                            </Show>
-                                            <Show when={
-                                                let error = status.last_error.clone();
-                                                move || error.is_some()
-                                            }>
-                                                <div>
-                                                    <p class="text-xs text-red-400">"Last error"</p>
-                                                    <p class="text-sm text-red-600">
-                                                        {status.last_error.clone().unwrap_or_default()}
-                                                    </p>
-                                                </div>
-                                            </Show>
-                                        </div>
-                                    }.into_any(),
-                                    None => view! {
-                                        <p class="text-sm text-gray-400">"Loading status…"</p>
-                                    }.into_any(),
+                                        }
+                                            .into_any()
+                                    }
+                                    None => {
+                                        view! {
+                                            <p class="text-sm text-gray-400">"Loading status…"</p>
+                                        }
+                                            .into_any()
+                                    }
                                 }
                             }}
                         </div>
@@ -164,13 +182,23 @@ pub fn AdminPage() -> impl IntoView {
                             </Show>
                             <button
                                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-                                disabled=move || is_triggering.get() || status_signal.get().map(|status| status.is_running).unwrap_or(false)
+                                disabled=move || {
+                                    is_triggering.get()
+                                        || status_signal
+                                            .get()
+                                            .map(|status| status.is_running)
+                                            .unwrap_or(false)
+                                }
                                 on:click=on_trigger
                             >
                                 {move || {
                                     if is_triggering.get() {
                                         "Triggering…"
-                                    } else if status_signal.get().map(|status| status.is_running).unwrap_or(false) {
+                                    } else if status_signal
+                                        .get()
+                                        .map(|status| status.is_running)
+                                        .unwrap_or(false)
+                                    {
                                         "Scrape Running…"
                                     } else {
                                         "Run Scrape Now"
@@ -184,19 +212,21 @@ pub fn AdminPage() -> impl IntoView {
         }.into_any()
     };
 
-    let unauthenticated_redirect = move || {
-        view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any()
-    };
+    let unauthenticated_redirect =
+        move || view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any();
 
     view! {
         {move || match auth_resource.get() {
             Some(Ok(true)) => authenticated_view(),
             Some(_) => unauthenticated_redirect(),
-            None => view! {
-                <div class="flex justify-center py-16">
-                    <p class="text-sm text-gray-400">"Checking auth…"</p>
-                </div>
-            }.into_any(),
+            None => {
+                view! {
+                    <div class="flex justify-center py-16">
+                        <p class="text-sm text-gray-400">"Checking auth…"</p>
+                    </div>
+                }
+                    .into_any()
+            }
         }}
     }
     .into_any()

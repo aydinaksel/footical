@@ -35,10 +35,8 @@ pub fn ToastHost(children: ChildrenFn) -> impl IntoView {
     let message = RwSignal::new(Option::<ToastMessage>::None);
     provide_context(Toaster { message });
 
-    let hide_after_delay = use_timeout_fn(
-        move |_: ()| message.set(None),
-        TOAST_VISIBLE_MILLISECONDS,
-    );
+    let hide_after_delay =
+        use_timeout_fn(move |_: ()| message.set(None), TOAST_VISIBLE_MILLISECONDS);
     let start_hiding = hide_after_delay.start;
 
     Effect::new(move |_| {
@@ -51,22 +49,22 @@ pub fn ToastHost(children: ChildrenFn) -> impl IntoView {
         {children()}
         {move || {
             let current = message.get()?;
-            Some(view! {
-                <div
-                    role="status"
-                    aria-live="polite"
-                    class="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none z-50"
-                >
-                    <div class=if current.is_error {
-                        "rounded-lg shadow-lg px-4 py-2.5 text-sm font-medium bg-red-600 text-white"
-                    } else {
-                        "rounded-lg shadow-lg px-4 py-2.5 text-sm font-medium bg-gray-900 text-white"
-                    }>
-                        {current.text}
+            Some(
+                view! {
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        class="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none z-50"
+                    >
+                        <div class=if current.is_error {
+                            "rounded-lg shadow-lg px-4 py-2.5 text-sm font-medium bg-red-600 text-white"
+                        } else {
+                            "rounded-lg shadow-lg px-4 py-2.5 text-sm font-medium bg-gray-900 text-white"
+                        }>{current.text}</div>
                     </div>
-                </div>
-            }
-            .into_any())
+                }
+                    .into_any(),
+            )
         }}
     }
     .into_any()

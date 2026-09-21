@@ -1,8 +1,8 @@
 use crate::components::team_picker::TeamPicker;
-use crate::tracked_team::{TrackedTeam, use_tracked_team};
+use crate::tracked_team::{use_tracked_team, TrackedTeam};
 use crate::types::Team;
 use leptos::prelude::*;
-use leptos_use::{UseClipboardReturn, use_clipboard};
+use leptos_use::{use_clipboard, UseClipboardReturn};
 
 #[component]
 pub fn Home() -> impl IntoView {
@@ -21,7 +21,10 @@ pub fn Home() -> impl IntoView {
 
     let tracked_team = Memo::new(move |_| -> Option<Team> {
         tracked_team_id.get().and_then(|team_id| {
-            all_teams.get().into_iter().find(|team| team.team_id == team_id)
+            all_teams
+                .get()
+                .into_iter()
+                .find(|team| team.team_id == team_id)
         })
     });
 
@@ -65,11 +68,11 @@ pub fn Home() -> impl IntoView {
                             <div class="flex justify-center py-16">
                                 <p class="text-sm text-gray-400">"Loading…"</p>
                             </div>
-                        }.into_any();
+                        }
+                            .into_any();
                     }
-
                     if tracked_team.get().is_none() {
-                        return view! {
+                        let team_picker_prompt = view! {
                             <div class="bg-white rounded-xl shadow-md p-8 space-y-6">
                                 <div>
                                     <h1 class="text-2xl font-bold text-gray-800">"Subscribe"</h1>
@@ -79,7 +82,8 @@ pub fn Home() -> impl IntoView {
                                 </div>
                                 <TeamPicker />
                             </div>
-                        }.into_any();
+                        };
+                        return team_picker_prompt.into_any();
                     }
 
                     view! {
@@ -138,9 +142,7 @@ pub fn Home() -> impl IntoView {
                             <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
                                 <div>
                                     <p class="font-medium text-gray-800">"Google Calendar"</p>
-                                    <p class="text-sm text-gray-400 mt-0.5">
-                                        "Opens in a new tab"
-                                    </p>
+                                    <p class="text-sm text-gray-400 mt-0.5">"Opens in a new tab"</p>
                                 </div>
                                 <a
                                     href=move || google_calendar_url.get().unwrap_or_default()
@@ -177,7 +179,8 @@ pub fn Home() -> impl IntoView {
                                 </div>
                             </div>
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 }}
             </div>
         </main>
