@@ -1,5 +1,33 @@
 # Footical
 
+## Architecture
+
+Every page gets its data from a `#[server]` function in `crates/website/src/server`,
+read through a `Resource` owned by the component that displays it. There is no
+global prefetch and no shared data signals.
+
+The content routes (`/`, `/fixtures`, `/today`, `/team/*`) declare
+`ssr=SsrMode::Async` and `await` their resources inside `Suspense`, so their HTML
+leaves the server complete. Reading a resource with `.get()` inside `Suspense`
+instead renders the fallback into the HTML and swaps the content in from a
+template after hydration, which is what those pages used to do.
+
+Filtering belongs in SQL. A server function returns the rows a page shows, not a
+table for the browser to sift through.
+
+Mutations are `ServerAction`s. Keying a `Resource` on an action's `.version()`
+refetches it when the action completes, which is what the removed version
+counters did by hand.
+
+The followed team lives in the `footical_team` cookie rather than local storage,
+because the server can only render a visitor's team if the request carries it.
+
+`require_admin_session` in `main.rs` redirects unauthenticated admin requests
+before Leptos renders. A `Redirect` component cannot do this on a streamed
+response: the 200 status is already committed by the time it sets the location
+header. The `AdminOnly` component still guards client-side navigation, and each
+admin server function checks the session itself.
+
 ## Develop
 
 `direnv allow` puts the toolchain, `cargo-leptos`, `leptosfmt`, `just` and
