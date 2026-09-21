@@ -4,10 +4,11 @@
 )]
 
 use crate::components::admin_only::AdminOnly;
-use crate::components::status_message::{StatusLine, StatusMessage};
+use crate::components::toast::show_toast;
 use crate::server::squad::{get_squad_roster, SetPlayerActive};
 use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
+use leptos_toaster::{provide_toasts, ToastVariant, Toaster, ToasterPosition};
 
 #[component]
 pub fn SquadAdminPage() -> impl IntoView {
@@ -21,7 +22,6 @@ pub fn SquadAdminPage() -> impl IntoView {
 
 #[island]
 fn SquadRoster() -> impl IntoView {
-    let status = RwSignal::new(Option::<StatusMessage>::None);
     let set_player_active = ServerAction::<SetPlayerActive>::new();
     let roster = Resource::new(
         move || set_player_active.version().get(),
@@ -32,15 +32,16 @@ fn SquadRoster() -> impl IntoView {
 
     Effect::new(move |_| match set_player_active.value().get() {
         Some(Ok(())) => {
-            status.set(Some(StatusMessage::confirmation(
+            show_toast(
                 if last_toggle_made_active.get_untracked() {
                     "Player shown"
                 } else {
                     "Player hidden"
                 },
-            )));
+                ToastVariant::Success,
+            );
         }
-        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
+        Some(Err(error)) => show_toast(error.to_string(), ToastVariant::Error),
         None => {}
     });
 
@@ -52,7 +53,10 @@ fn SquadRoster() -> impl IntoView {
         });
     };
 
+    provide_toasts();
+
     view! {
+        <Toaster position=ToasterPosition::BottomRight />
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-lg space-y-6">
                 <div class="flex items-baseline justify-between">
@@ -71,8 +75,6 @@ fn SquadRoster() -> impl IntoView {
                     "Hidden players stay out of the fines table and the admin dropdowns. \
                      Their fines and payments are kept."
                 </p>
-
-                <StatusLine status=status />
 
                 <Transition fallback=move || {
                     view! {

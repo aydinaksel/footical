@@ -1556,6 +1556,7 @@ dependencies = [
  "leptos_axum",
  "leptos_meta",
  "leptos_router",
+ "leptos_toaster",
  "serde",
  "sqlx",
  "tokio",
@@ -2594,6 +2595,20 @@ dependencies = [
  "serde_json",
  "server_fn",
  "tachys",
+]
+
+[[package]]
+name = "leptos_toaster"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3859d53510055acb5a19e74ecf850081722254ccb1a21acad4e46d69368a15ed"
+dependencies = [
+ "cfg-if",
+ "js-sys",
+ "leptos",
+ "leptos_meta",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

@@ -5,12 +5,13 @@
 
 use crate::components::admin_only::AdminOnly;
 use crate::components::searchable_select::{SearchableSelect, SelectOption};
-use crate::components::status_message::{StatusLine, StatusMessage};
+use crate::components::toast::show_toast;
 use crate::server::squad::{
     get_fine_types, get_recent_entries, get_squad_players, DeleteEntry, RecordFine, RecordPayment,
 };
 use crate::types::{format_pence, FineType, SquadPlayer};
 use leptos::prelude::*;
+use leptos_toaster::{provide_toasts, ToastVariant, Toaster, ToasterPosition};
 
 fn parse_pounds_to_pence(text: &str) -> Option<i64> {
     let trimmed = text.trim().trim_start_matches('£').trim();
@@ -63,7 +64,10 @@ fn FinesAdminForms() -> impl IntoView {
             .wrapping_add(delete_entry.version().get())
     });
 
+    provide_toasts();
+
     view! {
+        <Toaster position=ToasterPosition::BottomRight />
         <main class="flex justify-center p-4 pt-8">
             <div class="w-full max-w-lg space-y-6">
                 <div class="flex items-baseline justify-between">
@@ -209,7 +213,6 @@ fn RecordFineForm(
     tariff: Vec<FineType>,
     record_fine: ServerAction<RecordFine>,
 ) -> impl IntoView {
-    let status = RwSignal::new(Option::<StatusMessage>::None);
     let selected_player = RwSignal::new(Option::<i32>::None);
     let selected_fine_type = RwSignal::new(Option::<i32>::None);
     let note = RwSignal::new(String::new());
@@ -239,11 +242,11 @@ fn RecordFineForm(
         event.prevent_default();
 
         let Some(squad_player_id) = selected_player.get() else {
-            status.set(Some(StatusMessage::failure("Pick a player.")));
+            show_toast("Pick a player.", ToastVariant::Error);
             return;
         };
         let Some(fine_type_id) = selected_fine_type.get() else {
-            status.set(Some(StatusMessage::failure("Pick a fine.")));
+            show_toast("Pick a fine.", ToastVariant::Error);
             return;
         };
 
@@ -256,20 +259,19 @@ fn RecordFineForm(
 
     Effect::new(move |_| match record_fine.value().get() {
         Some(Ok(())) => {
-            status.set(Some(StatusMessage::confirmation("Fine recorded")));
+            show_toast("Fine recorded", ToastVariant::Success);
             note.set(String::new());
             selected_player.set(None);
             selected_fine_type.set(None);
             reset_fields.update(|generation| *generation = generation.wrapping_add(1));
         }
-        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
+        Some(Err(error)) => show_toast(error.to_string(), ToastVariant::Error),
         None => {}
     });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a fine"</h2>
-            <StatusLine status=status />
 
             <SearchableSelect
                 options=player_options
@@ -310,7 +312,6 @@ fn RecordPaymentForm(
     squad: Vec<SquadPlayer>,
     record_payment: ServerAction<RecordPayment>,
 ) -> impl IntoView {
-    let status = RwSignal::new(Option::<StatusMessage>::None);
     let selected_player = RwSignal::new(Option::<i32>::None);
     let amount_text = RwSignal::new(String::new());
     let note = RwSignal::new(String::new());
@@ -329,19 +330,15 @@ fn RecordPaymentForm(
         event.prevent_default();
 
         let Some(squad_player_id) = selected_player.get() else {
-            status.set(Some(StatusMessage::failure("Pick a player.")));
+            show_toast("Pick a player.", ToastVariant::Error);
             return;
         };
         let Some(amount_pence) = parse_pounds_to_pence(&amount_text.get()) else {
-            status.set(Some(StatusMessage::failure(
-                "Amount must look like 5 or 5.50.",
-            )));
+            show_toast("Amount must look like 5 or 5.50.", ToastVariant::Error);
             return;
         };
         if amount_pence == 0 {
-            status.set(Some(StatusMessage::failure(
-                "Amount must be more than zero.",
-            )));
+            show_toast("Amount must be more than zero.", ToastVariant::Error);
             return;
         }
 
@@ -355,23 +352,25 @@ fn RecordPaymentForm(
 
     Effect::new(move |_| match record_payment.value().get() {
         Some(Ok(())) => {
-            status.set(Some(StatusMessage::confirmation(format!(
-                "Payment of {} recorded",
-                format_pence(last_amount_pence.get_untracked()),
-            ))));
+            show_toast(
+                format!(
+                    "Payment of {} recorded",
+                    format_pence(last_amount_pence.get_untracked()),
+                ),
+                ToastVariant::Success,
+            );
             amount_text.set(String::new());
             reset_fields.update(|generation| *generation = generation.wrapping_add(1));
             note.set(String::new());
             selected_player.set(None);
         }
-        Some(Err(error)) => status.set(Some(StatusMessage::failure(error.to_string()))),
+        Some(Err(error)) => show_toast(error.to_string(), ToastVariant::Error),
         None => {}
     });
 
     view! {
         <form on:submit=on_submit class="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 class="font-bold text-gray-800">"Record a payment"</h2>
-            <StatusLine status=status />
 
             <SearchableSelect
                 options=player_options
