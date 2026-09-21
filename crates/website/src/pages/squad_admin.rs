@@ -5,7 +5,7 @@
 
 use crate::components::admin_only::AdminOnly;
 use crate::components::toast::show_toast;
-use crate::server::squad::{get_squad_roster, SetPlayerActive};
+use crate::server::squad::{get_squad_roster, AddSquadPlayer, SetPlayerActive};
 use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
 use leptos_toaster::{provide_toasts, ToastVariant, Toaster, ToasterPosition};
@@ -23,10 +23,15 @@ pub fn SquadAdminPage() -> impl IntoView {
 #[island]
 fn SquadRoster() -> impl IntoView {
     let set_player_active = ServerAction::<SetPlayerActive>::new();
-    let roster = Resource::new(
-        move || set_player_active.version().get(),
-        |_| get_squad_roster(),
-    );
+    let add_player = ServerAction::<AddSquadPlayer>::new();
+    let roster_version = Memo::new(move |_| {
+        set_player_active
+            .version()
+            .get()
+            .wrapping_add(add_player.version().get())
+    });
+    let roster = Resource::new(move || roster_version.get(), |_| get_squad_roster());
+    let new_player_name = RwSignal::new(String::new());
 
     let last_toggle_made_active = RwSignal::new(false);
 
@@ -44,6 +49,25 @@ fn SquadRoster() -> impl IntoView {
         Some(Err(error)) => show_toast(error.to_string(), ToastVariant::Error),
         None => {}
     });
+
+    Effect::new(move |_| match add_player.value().get() {
+        Some(Ok(())) => {
+            show_toast("Player added", ToastVariant::Success);
+            new_player_name.set(String::new());
+        }
+        Some(Err(error)) => show_toast(error.to_string(), ToastVariant::Error),
+        None => {}
+    });
+
+    let on_add_player = move |event: leptos::ev::SubmitEvent| {
+        event.prevent_default();
+        let name = new_player_name.get();
+        if name.trim().is_empty() {
+            show_toast("Enter a name.", ToastVariant::Error);
+            return;
+        }
+        add_player.dispatch(AddSquadPlayer { name });
+    };
 
     let on_toggle = move |squad_player_id: i32, make_active: bool| {
         last_toggle_made_active.set(make_active);
@@ -75,6 +99,23 @@ fn SquadRoster() -> impl IntoView {
                     "Hidden players stay out of the fines table and the admin dropdowns. \
                      Their fines and payments are kept."
                 </p>
+
+                <form on:submit=on_add_player class="flex gap-2">
+                    <input
+                        type="text"
+                        placeholder="Add a player…"
+                        prop:value=move || new_player_name.get()
+                        on:input=move |event| new_player_name.set(event_target_value(&event))
+                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                        type="submit"
+                        disabled=move || add_player.pending().get()
+                        class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                        {move || if add_player.pending().get() { "Adding…" } else { "Add" }}
+                    </button>
+                </form>
 
                 <Transition fallback=move || {
                     view! {

@@ -11,7 +11,7 @@ use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
 use crate::pages::player::PlayerPage;
 use crate::pages::squad_admin::SquadAdminPage;
-use crate::pages::team::{TeamFinesPage, TeamFixturesPage};
+use crate::pages::team::{TeamFinesPage, TeamFixturesPage, TeamTariffPage};
 use crate::pages::today::TodayPage;
 use crate::tracked_team::provide_tracked_team;
 
@@ -52,6 +52,7 @@ pub fn App() -> impl IntoView {
                     />
                     <Route path=path!("/team/fixtures") view=TeamFixturesPage ssr=SsrMode::Async />
                     <Route path=path!("/team/fines") view=TeamFinesPage ssr=SsrMode::Async />
+                    <Route path=path!("/team/tariff") view=TeamTariffPage ssr=SsrMode::Async />
                     <Route path=path!("/team/player/:id") view=PlayerPage ssr=SsrMode::Async />
                     <Route path=path!("/admin/fines") view=FinesAdminPage ssr=SsrMode::Async />
                     <Route path=path!("/admin/squad") view=SquadAdminPage ssr=SsrMode::Async />

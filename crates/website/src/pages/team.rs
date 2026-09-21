@@ -1,7 +1,6 @@
-use crate::server::squad::{get_player_balances, get_squad_fixtures};
-use crate::types::{format_pence, PlayerBalance, SquadFixture};
+use crate::server::squad::{get_fine_types, get_player_balances, get_squad_fixtures};
+use crate::types::{format_pence, FineType, PlayerBalance, SquadFixture};
 use leptos::prelude::*;
-use leptos_router::components::A;
 use leptos_router::hooks::use_location;
 
 const TEAM_NAME: &str = "Wigginton Grasshoppers Reserves";
@@ -13,12 +12,17 @@ pub fn TeamLayout(children: ChildrenFn) -> impl IntoView {
     let tab_class = move |path: &'static str| {
         move || {
             if location.pathname.get() == path {
-                "pb-2 border-b-2 border-blue-600 text-blue-600 font-medium text-sm"
+                "inline-block pb-3 -mb-px border-b-2 border-blue-600 text-blue-600 \
+                 font-medium text-sm"
             } else {
-                "pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 text-sm"
+                "inline-block pb-3 -mb-px border-b-2 border-transparent text-gray-500 \
+                 hover:text-gray-800 hover:border-gray-300 text-sm transition-colors"
             }
         }
     };
+
+    let tab_current =
+        move |path: &'static str| move || location.pathname.get().eq(path).then_some("page");
 
     view! {
         <main class="flex justify-center p-4 pt-8">
@@ -29,12 +33,27 @@ pub fn TeamLayout(children: ChildrenFn) -> impl IntoView {
                 </div>
 
                 <nav class="flex gap-6 border-b border-gray-200">
-                    <A href="/team/fixtures">
-                        <span class=tab_class("/team/fixtures")>"Fixtures"</span>
-                    </A>
-                    <A href="/team/fines">
-                        <span class=tab_class("/team/fines")>"Fines"</span>
-                    </A>
+                    <a
+                        href="/team/fixtures"
+                        class=tab_class("/team/fixtures")
+                        aria-current=tab_current("/team/fixtures")
+                    >
+                        "Fixtures"
+                    </a>
+                    <a
+                        href="/team/fines"
+                        class=tab_class("/team/fines")
+                        aria-current=tab_current("/team/fines")
+                    >
+                        "Fines"
+                    </a>
+                    <a
+                        href="/team/tariff"
+                        class=tab_class("/team/tariff")
+                        aria-current=tab_current("/team/tariff")
+                    >
+                        "Fine List"
+                    </a>
                 </nav>
 
                 {children()}
@@ -236,6 +255,71 @@ fn fines_table(balances: Vec<PlayerBalance>) -> AnyView {
                     </tfoot>
                 </table>
             </div>
+        </div>
+    }
+    .into_any()
+}
+
+#[component]
+pub fn TeamTariffPage() -> impl IntoView {
+    let fine_types = Resource::new_blocking(|| (), |_| get_fine_types());
+
+    view! {
+        <TeamLayout>
+            <Suspense fallback=move || {
+                view! {
+                    <p class="text-sm text-gray-400 py-8 text-center">"Loading fine list…"</p>
+                }
+            }>
+                {move || Suspend::new(async move {
+                    match fine_types.await {
+                        Err(_) => {
+                            view! {
+                                <p class="text-sm text-red-500 py-8 text-center">
+                                    "Failed to load the fine list."
+                                </p>
+                            }
+                                .into_any()
+                        }
+                        Ok(tariff) => tariff_table(tariff),
+                    }
+                })}
+            </Suspense>
+        </TeamLayout>
+    }
+    .into_any()
+}
+
+fn tariff_table(tariff: Vec<FineType>) -> AnyView {
+    if tariff.is_empty() {
+        return view! {
+            <div class="bg-white rounded-xl shadow-md p-8">
+                <p class="text-sm text-gray-400 text-center">"No fines have been set."</p>
+            </div>
+        }
+        .into_any();
+    }
+
+    view! {
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <h2 class="font-bold text-gray-800">"Fine List"</h2>
+            </div>
+            <ul class="divide-y divide-gray-50">
+                {tariff
+                    .into_iter()
+                    .map(|fine_type| {
+                        view! {
+                            <li class="px-6 py-3 flex items-baseline justify-between gap-4">
+                                <p class="text-sm text-gray-800">{fine_type.name}</p>
+                                <p class="font-mono text-sm text-gray-800 shrink-0">
+                                    {format_pence(fine_type.default_amount_pence)}
+                                </p>
+                            </li>
+                        }
+                    })
+                    .collect_view()}
+            </ul>
         </div>
     }
     .into_any()

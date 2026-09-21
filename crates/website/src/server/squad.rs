@@ -271,3 +271,30 @@ pub async fn set_player_active(squad_player_id: i32, is_active: bool) -> Result<
 
     Ok(())
 }
+
+#[server]
+pub async fn add_squad_player(name: String) -> Result<(), ServerFnError> {
+    require_admin().await?;
+
+    let trimmed_name = name.trim();
+    if trimmed_name.is_empty() {
+        return Err(ServerFnError::new("a player needs a name"));
+    }
+
+    let pool = database_pool()?;
+    let result = sqlx::query(
+        "INSERT INTO squad_player (name) VALUES (?)
+         ON CONFLICT (name) DO UPDATE SET is_active = 1
+         WHERE squad_player.is_active = 0",
+    )
+    .bind(trimmed_name)
+    .execute(&pool)
+    .await
+    .map_err(|error| report_query_failure("insert_squad_player", error))?;
+
+    if result.rows_affected() == 0 {
+        return Err(ServerFnError::new("that player is already in the squad"));
+    }
+
+    Ok(())
+}
