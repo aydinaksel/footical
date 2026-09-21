@@ -2,6 +2,27 @@
 
 ## Architecture
 
+The site runs in Leptos islands mode. Pages render on the server and ship no
+interactive code; only components marked `#[island]` are hydrated. There is
+one island per interactive area: the team picker, the two team buttons, the
+login form, and one per admin page. `HydrationScripts` must carry
+`islands=true` or nothing hydrates at all, silently: the markup and the wasm
+both arrive, and no event handler is ever bound.
+
+Three constraints follow from an island boundary. Context does not cross it,
+so anything shared (the toaster, the followed team) is established inside the
+island that uses it. Props must be serializable, which is why a page is one
+island rather than one per form: a `ServerAction` cannot be passed in.
+Nothing outside an island reacts, so changing the followed team reloads the
+page and lets the server render the choice.
+
+Wrapping a page in `<Toaster>` panics during hydration inside an island
+(`failed_to_cast_marker_node`). Call `provide_toasts()` and render
+`<Toaster />` as a sibling of the page instead.
+
+Navigation is ordinary page loads. The client-side router is not hydrated,
+and `islands-router` is not enabled.
+
 Every page gets its data from a `#[server]` function in `crates/website/src/server`,
 read through a `Resource` owned by the component that displays it. There is no
 global prefetch and no shared data signals.
