@@ -1,5 +1,23 @@
 # Footical
 
+## Develop
+
+`direnv allow` puts the toolchain, `cargo-leptos`, `leptosfmt`, `just` and
+`sqlite` on the path. Without direnv, use `nix develop`.
+
+```sh
+just watch   # or: nix run .#watch
+just check   # fmt, leptosfmt, clippy (ssr and hydrate), tests
+```
+
+`footical-watch` serves on `http://localhost:3003` against its own SQLite
+file at `~/.local/share/footical/footical.db`, created on first run. It sets
+`DATABASE_URL`, `ADMIN_PASSWORD` (`development`) and `COOKIE_SECRET`, and
+because all three are present the service never reaches for Bitwarden, so no
+access token is needed locally. Export any of them yourself to override.
+
+The admin pages can trigger a scrape on demand to fill an empty database.
+
 ## Deploy
 
 Runs on `apollo` as a flake input of `~/Projects/chichek-infrastructure`.

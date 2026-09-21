@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     let site_addr = std::env::var("LEPTOS_SITE_ADDR")
         .ok()
         .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
-        .unwrap_or_else(|| std::net::SocketAddr::from(([0, 0, 0, 0], 3000)));
+        .unwrap_or_else(|| std::net::SocketAddr::from(([0, 0, 0, 0], 3003)));
     let leptos_options = LeptosOptions::builder()
         .output_name("footical-website")
         .site_root(site_root)

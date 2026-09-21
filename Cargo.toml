@@ -13,8 +13,8 @@ lib-package = "footical-website"
 site-root = "target/site"
 site-pkg-dir = "pkg"
 tailwind-input-file = "crates/website/style/input.css"
-site-addr = "0.0.0.0:3000"
-reload-port = 3001
+site-addr = "0.0.0.0:3003"
+reload-port = 5004
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
 
