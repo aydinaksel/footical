@@ -1,6 +1,6 @@
+use crate::components::admin_only::AdminOnly;
 use crate::components::searchable_select::{SearchableSelect, SelectOption};
 use crate::components::toast::use_toaster;
-use crate::server::auth::check_auth;
 use crate::server::squad::{
     delete_entry, get_fine_types, get_recent_entries, get_squad_players, record_fine,
     record_payment,
@@ -36,19 +36,10 @@ fn parse_pounds_to_pence(text: &str) -> Option<i64> {
 
 #[component]
 pub fn FinesAdminPage() -> impl IntoView {
-    let auth_resource = Resource::new(|| (), |_| check_auth());
-
     view! {
-        {move || match auth_resource.get() {
-            Some(Ok(true)) => view! { <FinesAdminForms /> }.into_any(),
-            Some(_) => {
-                view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any()
-            }
-            None => {
-                view! { <p class="text-sm text-gray-400 text-center py-16">"Checking auth…"</p> }
-                    .into_any()
-            }
-        }}
+        <AdminOnly>
+            <FinesAdminForms />
+        </AdminOnly>
     }
     .into_any()
 }

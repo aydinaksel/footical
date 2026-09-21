@@ -88,6 +88,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .fallback_service(site_router)
+        .layer(axum::middleware::from_fn(require_admin_session))
         .layer(axum::middleware::from_fn(route_calendar_subdomain));
 
     tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
@@ -275,3 +276,39 @@ fn rewrite_to_feed_path(mut request: axum::extract::Request) -> Option<axum::ext
 
 #[cfg(not(feature = "ssr"))]
 fn main() {}
+
+#[cfg(feature = "ssr")]
+const ADMIN_PATH_PREFIX: &str = "/admin";
+
+#[cfg(feature = "ssr")]
+const LOGIN_PATH: &str = "/admin/login";
+
+#[cfg(feature = "ssr")]
+async fn require_admin_session(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::{IntoResponse, Redirect};
+
+    let path = request.uri().path();
+    if !path.starts_with(ADMIN_PATH_PREFIX) || path == LOGIN_PATH {
+        return next.run(request).await;
+    }
+
+    let cookie_header = request
+        .headers()
+        .get(axum::http::header::COOKIE)
+        .and_then(|value| value.to_str().ok());
+
+    if footical_website::server::auth::has_valid_session(cookie_header) {
+        return next.run(request).await;
+    }
+
+    tracing::event!(
+        name: "admin.request.unauthenticated",
+        tracing::Level::DEBUG,
+        url.path = path,
+        "unauthenticated request to {{url.path}} redirected to sign in",
+    );
+    Redirect::temporary(LOGIN_PATH).into_response()
+}

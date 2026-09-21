@@ -1,24 +1,15 @@
+use crate::components::admin_only::AdminOnly;
 use crate::components::toast::use_toaster;
-use crate::server::auth::check_auth;
 use crate::server::squad::{get_squad_roster, set_player_active};
 use crate::types::{format_pence, SquadRosterEntry};
 use leptos::prelude::*;
 
 #[component]
 pub fn SquadAdminPage() -> impl IntoView {
-    let auth_resource = Resource::new(|| (), |_| check_auth());
-
     view! {
-        {move || match auth_resource.get() {
-            Some(Ok(true)) => view! { <SquadRoster /> }.into_any(),
-            Some(_) => {
-                view! { <leptos_router::components::Redirect path="/admin/login" /> }.into_any()
-            }
-            None => {
-                view! { <p class="text-sm text-gray-400 text-center py-16">"Checking auth…"</p> }
-                    .into_any()
-            }
-        }}
+        <AdminOnly>
+            <SquadRoster />
+        </AdminOnly>
     }
     .into_any()
 }

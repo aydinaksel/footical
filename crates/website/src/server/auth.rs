@@ -45,30 +45,38 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
     Ok(())
 }
 
+#[cfg(feature = "ssr")]
+pub fn has_valid_session(cookie_header: Option<&str>) -> bool {
+    let Some(cookie_header) = cookie_header else {
+        return false;
+    };
+
+    let session_token = cookie_header
+        .split(';')
+        .map(|cookie| cookie.trim())
+        .find_map(|cookie| cookie.strip_prefix(&format!("{SESSION_COOKIE_NAME}=")));
+
+    let Some(session_token) = session_token else {
+        return false;
+    };
+
+    let admin_password = std::env::var("ADMIN_PASSWORD").unwrap_or_default();
+    let cookie_secret = std::env::var("COOKIE_SECRET").unwrap_or(admin_password);
+
+    session_token == generate_session_token(&cookie_secret)
+}
+
 #[server]
 pub async fn check_auth() -> Result<bool, ServerFnError> {
     let request = use_context::<axum::http::request::Parts>()
         .ok_or_else(|| ServerFnError::new("no request parts"))?;
 
-    let cookie_header = match request.headers.get("cookie") {
-        Some(value) => value.to_str().unwrap_or(""),
-        None => return Ok(false),
-    };
-
-    let session_value = cookie_header
-        .split(';')
-        .map(|cookie| cookie.trim())
-        .find_map(|cookie| cookie.strip_prefix(&format!("{SESSION_COOKIE_NAME}=")));
-
-    let Some(token) = session_value else {
-        return Ok(false);
-    };
-
-    let expected_password = std::env::var("ADMIN_PASSWORD").unwrap_or_default();
-    let cookie_secret = std::env::var("COOKIE_SECRET").unwrap_or(expected_password.clone());
-    let expected_token = generate_session_token(&cookie_secret);
-
-    Ok(token == expected_token)
+    Ok(has_valid_session(
+        request
+            .headers
+            .get(axum::http::header::COOKIE)
+            .and_then(|value| value.to_str().ok()),
+    ))
 }
 
 #[server]
