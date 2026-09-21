@@ -78,21 +78,19 @@ fn FinesAdminForms() -> impl IntoView {
                         <p class="text-sm text-gray-400 text-center py-8">"Loading squad…"</p>
                     }
                 }>
-                    {move || {
-                        let squad = players.get().and_then(|result| result.ok())?;
-                        let tariff = fine_types.get().and_then(|result| result.ok())?;
-                        Some(
-                            view! {
-                                <RecordFineForm
-                                    squad=squad.clone()
-                                    tariff=tariff
-                                    record_fine=record_fine
-                                />
-                                <RecordPaymentForm squad=squad record_payment=record_payment />
-                            }
-                                .into_any(),
-                        )
-                    }}
+                    {move || Suspend::new(async move {
+                        let squad = players.await.unwrap_or_default();
+                        let tariff = fine_types.await.unwrap_or_default();
+                        view! {
+                            <RecordFineForm
+                                squad=squad.clone()
+                                tariff=tariff
+                                record_fine=record_fine
+                            />
+                            <RecordPaymentForm squad=squad record_payment=record_payment />
+                        }
+                            .into_any()
+                    })}
                 </Suspense>
 
                 <RecentEntries delete_entry=delete_entry ledger_version=ledger_version />
@@ -137,67 +135,63 @@ fn RecentEntries(
             <Transition fallback=move || {
                 view! { <p class="text-sm text-gray-400 text-center py-8">"Loading…"</p> }
             }>
-                {move || {
-                    let recent = entries.get()?.ok()?;
+                {move || Suspend::new(async move {
+                    let recent = entries.await.unwrap_or_default();
                     if recent.is_empty() {
-                        return Some(
-                            view! {
-                                <p class="text-sm text-gray-400 text-center py-8">
-                                    "Nothing recorded yet."
-                                </p>
-                            }
-                                .into_any(),
-                        );
-                    }
-                    Some(
-                        view! {
-                            <ul class="divide-y divide-gray-50">
-                                <For
-                                    each=move || recent.clone()
-                                    key=|entry| (entry.is_payment, entry.entry_id)
-                                    children=move |entry| {
-                                        let entry_id = entry.entry_id;
-                                        let is_payment = entry.is_payment;
-                                        let note = entry.note.clone().unwrap_or_default();
-                                        view! {
-                                            <li class="px-6 py-3 flex items-center justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <p class="text-sm text-gray-800 truncate">
-                                                        {entry.player_name}
-                                                    </p>
-                                                    <p class="text-xs text-gray-400 mt-0.5 truncate">
-                                                        {entry.description} " · " {entry.happened_on}
-                                                        {if note.is_empty() {
-                                                            String::new()
-                                                        } else {
-                                                            format!(" · {note}")
-                                                        }}
-                                                    </p>
-                                                </div>
-                                                <div class="flex items-center gap-3 shrink-0">
-                                                    <span class=if is_payment {
-                                                        "font-mono text-sm text-green-600"
-                                                    } else {
-                                                        "font-mono text-sm text-gray-800"
-                                                    }>{format_pence(entry.amount_pence)}</span>
-                                                    <button
-                                                        type="button"
-                                                        class="text-xs text-gray-400 hover:text-red-600 cursor-pointer"
-                                                        on:click=move |_| on_delete(entry_id, is_payment)
-                                                    >
-                                                        "Undo"
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        }
-                                            .into_any()
-                                    }
-                                />
-                            </ul>
+                        return view! {
+                            <p class="text-sm text-gray-400 text-center py-8">
+                                "Nothing recorded yet."
+                            </p>
                         }
-                            .into_any(),
-                    )
-                }}
+                            .into_any();
+                    }
+                    view! {
+                        <ul class="divide-y divide-gray-50">
+                            <For
+                                each=move || recent.clone()
+                                key=|entry| (entry.is_payment, entry.entry_id)
+                                children=move |entry| {
+                                    let entry_id = entry.entry_id;
+                                    let is_payment = entry.is_payment;
+                                    let note = entry.note.clone().unwrap_or_default();
+                                    view! {
+                                        <li class="px-6 py-3 flex items-center justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <p class="text-sm text-gray-800 truncate">
+                                                    {entry.player_name}
+                                                </p>
+                                                <p class="text-xs text-gray-400 mt-0.5 truncate">
+                                                    {entry.description} " · " {entry.happened_on}
+                                                    {if note.is_empty() {
+                                                        String::new()
+                                                    } else {
+                                                        format!(" · {note}")
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <div class="flex items-center gap-3 shrink-0">
+                                                <span class=if is_payment {
+                                                    "font-mono text-sm text-green-600"
+                                                } else {
+                                                    "font-mono text-sm text-gray-800"
+                                                }>{format_pence(entry.amount_pence)}</span>
+                                                <button
+                                                    type="button"
+                                                    class="text-xs text-gray-400 hover:text-red-600 cursor-pointer"
+                                                    on:click=move |_| on_delete(entry_id, is_payment)
+                                                >
+                                                    "Undo"
+                                                </button>
+                                            </div>
+                                        </li>
+                                    }
+                                        .into_any()
+                                }
+                            />
+                        </ul>
+                    }
+                        .into_any()
+                })}
             </Transition>
         </div>
     }

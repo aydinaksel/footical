@@ -75,15 +75,13 @@ fn SquadRoster() -> impl IntoView {
                         <p class="text-sm text-gray-400 text-center py-8">"Loading squad…"</p>
                     }
                 }>
-                    {move || {
-                        let players = roster.get()?.ok()?;
-                        Some(
-                            roster_view(
-                                players,
-                                Callback::new(move |(id, active)| { on_toggle(id, active) }),
-                            ),
+                    {move || Suspend::new(async move {
+                        let players = roster.await.unwrap_or_default();
+                        roster_view(
+                            players,
+                            Callback::new(move |(id, active)| { on_toggle(id, active) }),
                         )
-                    }}
+                    })}
                 </Transition>
             </div>
         </main>

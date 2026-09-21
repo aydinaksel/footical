@@ -59,10 +59,10 @@ pub fn App() -> impl IntoView {
                         />
                         <Route path=path!("/team/fines") view=TeamFinesPage ssr=SsrMode::Async />
                         <Route path=path!("/team/player/:id") view=PlayerPage ssr=SsrMode::Async />
-                        <Route path=path!("/admin/fines") view=FinesAdminPage />
-                        <Route path=path!("/admin/squad") view=SquadAdminPage />
+                        <Route path=path!("/admin/fines") view=FinesAdminPage ssr=SsrMode::Async />
+                        <Route path=path!("/admin/squad") view=SquadAdminPage ssr=SsrMode::Async />
                         <Route path=path!("/admin/login") view=LoginPage />
-                        <Route path=path!("/admin") view=AdminPage />
+                        <Route path=path!("/admin") view=AdminPage ssr=SsrMode::Async />
                     </Routes>
                 </div>
             </ToastHost>
