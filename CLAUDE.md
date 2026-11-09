@@ -69,24 +69,21 @@ The admin pages can trigger a scrape on demand to fill an empty database.
 
 ## Deploy
 
-Runs on `apollo` as a flake input of `~/Projects/chichek-infrastructure`.
-This repo is on a personal account with no self-hosted runner, so the deploy
-is manual: push, then re-lock the pin and activate.
+Runs on `argus` as a flake input of `~/Projects/personal-infrastructure`,
+behind argus's host-proxy. Deploys are manual: push, then re-lock the pin and
+activate.
 
 ```sh
-cd ~/Projects/chichek-infrastructure
+cd ~/Projects/personal-infrastructure
 nix flake update footical    # re-lock to main HEAD
-nix run . -- .#apollo
+nix run . -- .#argus
 ```
-
-Pushing to `chichek-infrastructure` main also deploys apollo on its own
-runner, so committing the re-locked `flake.lock` is enough on its own.
 
 Roll back a bad commit by pinning a good SHA instead of tracking `main`:
 
 ```sh
-nix flake lock --override-input footical "git+https://github.com/aydinaksel/footical?rev=<good-sha>"
-nix run . -- .#apollo
+nix flake lock --override-input footical "github:aydinaksel/footical/<good-sha>"
+nix run . -- .#argus
 ```
 
 The access token lives at `/var/lib/bws/footical-access-token` on the host and
