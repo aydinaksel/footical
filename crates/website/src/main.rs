@@ -27,12 +27,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
     tracing_subscriber::fmt().with_env_filter(log_filter).init();
 
-    footical_secrets::inject_from_bws(&[
-        ("DATABASE_URL", "aa7a6d8e-af00-4910-937e-b44900b65003"),
-        ("ADMIN_PASSWORD", "6f4d8d95-9208-405d-acd7-b44900b7df81"),
-        ("COOKIE_SECRET", "5265df47-9b76-425c-898a-b44900b7eeb9"),
-    ])
-    .await?;
+    let admin_credentials = footical_website::server::AdminCredentials::from_systemd()?;
 
     let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_owned());
     let site_addr = std::env::var("LEPTOS_SITE_ADDR")
@@ -77,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
         pool: pool.clone(),
         leptos_options: leptos_options.clone(),
         scrape_state: scrape_state.clone(),
+        admin_credentials: admin_credentials.clone(),
     };
 
     let static_assets =
@@ -97,9 +93,11 @@ async fn main() -> anyhow::Result<()> {
             {
                 let pool = pool.clone();
                 let scrape_state = scrape_state.clone();
+                let admin_credentials = admin_credentials.clone();
                 move || {
                     leptos::context::provide_context(pool.clone());
                     leptos::context::provide_context(scrape_state.clone());
+                    leptos::context::provide_context(admin_credentials.clone());
                 }
             },
             {
@@ -116,7 +114,10 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .fallback_service(site_router)
         .layer(tower_http::compression::CompressionLayer::new())
-        .layer(axum::middleware::from_fn(require_admin_session))
+        .layer(axum::middleware::from_fn_with_state(
+            admin_credentials,
+            require_admin_session,
+        ))
         .layer(axum::middleware::from_fn(route_calendar_subdomain));
 
     tokio::spawn(run_scheduled_scrapes(pool.clone(), scrape_state.clone()));
@@ -313,6 +314,9 @@ const LOGIN_PATH: &str = "/admin/login";
 
 #[cfg(feature = "ssr")]
 async fn require_admin_session(
+    axum::extract::State(admin_credentials): axum::extract::State<
+        footical_website::server::AdminCredentialsHandle,
+    >,
     request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
@@ -328,7 +332,7 @@ async fn require_admin_session(
         .get(axum::http::header::COOKIE)
         .and_then(|value| value.to_str().ok());
 
-    if footical_website::server::auth::has_valid_session(cookie_header) {
+    if footical_website::server::auth::has_valid_session(cookie_header, &admin_credentials) {
         return next.run(request).await;
     }
 

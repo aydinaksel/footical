@@ -23,15 +23,15 @@ Wrapping a page in `<Toaster>` panics during hydration inside an island
 Navigation is ordinary page loads. The client-side router is not hydrated,
 and `islands-router` is not enabled.
 
-Every page gets its data from a `#[server]` function in `crates/website/src/server`,
-read through a `Resource` owned by the component that displays it. There is no
-global prefetch and no shared data signals.
+Every page gets its data from a `#[server]` function in
+`crates/website/src/server`, read through a `Resource` owned by the component
+that displays it. There is no global prefetch and no shared data signals.
 
 The content routes (`/`, `/fixtures`, `/today`, `/team/*`) declare
-`ssr=SsrMode::Async` and `await` their resources inside `Suspense`, so their HTML
-leaves the server complete. Reading a resource with `.get()` inside `Suspense`
-instead renders the fallback into the HTML and swaps the content in from a
-template after hydration, which is what those pages used to do.
+`ssr=SsrMode::Async` and `await` their resources inside `Suspense`, so their
+HTML leaves the server complete. Reading a resource with `.get()` inside
+`Suspense` instead renders the fallback into the HTML and swaps the content in
+from a template after hydration, which is what those pages used to do.
 
 Filtering belongs in SQL. A server function returns the rows a page shows, not a
 table for the browser to sift through.
@@ -60,10 +60,11 @@ just check   # fmt, leptosfmt, clippy (ssr and hydrate), tests
 ```
 
 `footical-watch` serves on `http://localhost:3003` against its own SQLite
-file at `~/.local/share/footical/footical.db`, created on first run. It sets
-`DATABASE_URL`, `ADMIN_PASSWORD` (`development`) and `COOKIE_SECRET`, and
-because all three are present the service never reaches for Bitwarden, so no
-access token is needed locally. Export any of them yourself to override.
+file at `~/.local/share/footical/footical.db`, created on first run. It stages
+the admin password (`development`) and the cookie secret in a temporary
+`$CREDENTIALS_DIRECTORY`, the way systemd's `LoadCredential=` does in
+production. Set `FOOTICAL_ADMIN_PASSWORD` or `FOOTICAL_COOKIE_SECRET` to
+override them.
 
 The admin pages can trigger a scrape on demand to fill an empty database.
 
@@ -86,6 +87,6 @@ nix flake lock --override-input footical "github:aydinaksel/footical/<good-sha>"
 nix run . -- .#argus
 ```
 
-The access token lives at `/var/lib/bws/footical-access-token` on the host and
-reaches the service as a systemd credential. A new host needs that file placed
-by hand before the unit will start.
+The admin password and cookie secret live in argus's sops file and reach the
+service as the systemd credentials `admin-password` and `cookie-secret`. The
+service refuses to start without either.

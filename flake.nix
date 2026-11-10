@@ -113,13 +113,17 @@
           mkdir -p "$state_directory"
 
           export DATABASE_URL="''${DATABASE_URL:-sqlite://$state_directory/footical.db}"
-          export ADMIN_PASSWORD="''${ADMIN_PASSWORD:-development}"
-          export COOKIE_SECRET="''${COOKIE_SECRET:-development-cookie-secret}"
+
+          credentials_directory="$(mktemp -d)"
+          trap 'rm -rf "$credentials_directory"' EXIT
+          printf '%s' "''${FOOTICAL_ADMIN_PASSWORD:-development}" > "$credentials_directory/admin-password"
+          printf '%s' "''${FOOTICAL_COOKIE_SECRET:-development-cookie-secret}" > "$credentials_directory/cookie-secret"
+          export CREDENTIALS_DIRECTORY="$credentials_directory"
           export RUST_LOG="''${RUST_LOG:-info,footical_website=debug,footical_scraper=debug}"
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 
-          exec cargo leptos watch "$@"
+          cargo leptos watch "$@"
         '';
       };
     in

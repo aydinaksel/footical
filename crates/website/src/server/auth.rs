@@ -7,11 +7,12 @@ const SESSION_COOKIE_NAME: &str = "footical_session";
 
 #[server]
 pub async fn login(password: String) -> Result<(), ServerFnError> {
-    let expected = std::env::var("ADMIN_PASSWORD")
-        .ok()
-        .ok_or_else(|| ServerFnError::new("ADMIN_PASSWORD not configured"))?;
+    use footical_secrets::ExposeSecret;
 
-    if password != expected {
+    let admin_credentials = use_context::<crate::server::AdminCredentialsHandle>()
+        .ok_or_else(|| ServerFnError::new("no admin credentials"))?;
+
+    if password != admin_credentials.password.expose_secret() {
         event!(
             name: "admin.login.rejected",
             Level::WARN,
@@ -23,9 +24,7 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
     let response_options = use_context::<leptos_axum::ResponseOptions>()
         .ok_or_else(|| ServerFnError::new("no response options"))?;
 
-    let cookie_secret = std::env::var("COOKIE_SECRET").unwrap_or_else(|_| expected.clone());
-
-    let token = generate_session_token(&cookie_secret);
+    let token = generate_session_token(admin_credentials.session_secret.expose_secret());
     let cookie = format!(
         "{}={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400",
         SESSION_COOKIE_NAME, token,
@@ -46,7 +45,12 @@ pub async fn login(password: String) -> Result<(), ServerFnError> {
 }
 
 #[cfg(feature = "ssr")]
-pub fn has_valid_session(cookie_header: Option<&str>) -> bool {
+pub fn has_valid_session(
+    cookie_header: Option<&str>,
+    admin_credentials: &crate::server::AdminCredentials,
+) -> bool {
+    use footical_secrets::ExposeSecret;
+
     let Some(cookie_header) = cookie_header else {
         return false;
     };
@@ -60,22 +64,22 @@ pub fn has_valid_session(cookie_header: Option<&str>) -> bool {
         return false;
     };
 
-    let admin_password = std::env::var("ADMIN_PASSWORD").unwrap_or_default();
-    let cookie_secret = std::env::var("COOKIE_SECRET").unwrap_or(admin_password);
-
-    session_token == generate_session_token(&cookie_secret)
+    session_token == generate_session_token(admin_credentials.session_secret.expose_secret())
 }
 
 #[server]
 pub async fn check_auth() -> Result<bool, ServerFnError> {
     let request = use_context::<axum::http::request::Parts>()
         .ok_or_else(|| ServerFnError::new("no request parts"))?;
+    let admin_credentials = use_context::<crate::server::AdminCredentialsHandle>()
+        .ok_or_else(|| ServerFnError::new("no admin credentials"))?;
 
     Ok(has_valid_session(
         request
             .headers
             .get(axum::http::header::COOKIE)
             .and_then(|value| value.to_str().ok()),
+        &admin_credentials,
     ))
 }
 
