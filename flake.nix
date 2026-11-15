@@ -34,6 +34,9 @@
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
+      chromiumExecutable = "${pkgs.chromium}/bin/chromium";
+      xvfbExecutable = "${pkgs.xvfb}/bin/Xvfb";
+
       unfilteredRoot = ./.;
 
       filteredSource = pkgs.lib.fileset.toSource {
@@ -78,6 +81,8 @@
           version = "0.1.0";
           inherit cargoArtifacts;
 
+          nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.makeWrapper ];
+
           doNotPostBuildInstallCargoBinaries = true;
 
           buildPhaseCargoCommand = ''
@@ -88,6 +93,9 @@
             mkdir -p $out/bin $out/share/footical
             cp target/release/footical-website $out/bin/footical-website
             cp -r target/site/. $out/share/footical/site/
+            wrapProgram $out/bin/footical-website \
+              --set-default CHROMIUM_EXECUTABLE ${chromiumExecutable} \
+              --set-default XVFB_EXECUTABLE ${xvfbExecutable}
           '';
 
           doCheck = false;
@@ -119,6 +127,9 @@
           printf '%s' "''${FOOTICAL_ADMIN_PASSWORD:-development}" > "$credentials_directory/admin-password"
           printf '%s' "''${FOOTICAL_COOKIE_SECRET:-development-cookie-secret}" > "$credentials_directory/cookie-secret"
           export CREDENTIALS_DIRECTORY="$credentials_directory"
+          export CHROMIUM_EXECUTABLE="''${CHROMIUM_EXECUTABLE:-${chromiumExecutable}}"
+          export XVFB_EXECUTABLE="''${XVFB_EXECUTABLE:-${xvfbExecutable}}"
+          export CHROMIUM_PROFILE_DIRECTORY="''${CHROMIUM_PROFILE_DIRECTORY:-$state_directory/chromium-profile}"
           export RUST_LOG="''${RUST_LOG:-info,footical_website=debug,footical_scraper=debug}"
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=-fuse-ld=mold"
@@ -158,8 +169,17 @@
           pkgs.leptosfmt
           pkgs.just
           pkgs.sqlite
+          pkgs.chromium
+          pkgs.xvfb
           footicalWatch
         ];
+
+        CHROMIUM_EXECUTABLE = chromiumExecutable;
+        XVFB_EXECUTABLE = xvfbExecutable;
+
+        shellHook = ''
+          export CHROMIUM_PROFILE_DIRECTORY="''${CHROMIUM_PROFILE_DIRECTORY:-''${XDG_DATA_HOME:-$HOME/.local/share}/footical/chromium-profile}"
+        '';
 
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
