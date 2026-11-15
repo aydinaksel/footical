@@ -112,7 +112,7 @@
           state_directory="''${FOOTICAL_STATE_DIRECTORY:-''${XDG_DATA_HOME:-$HOME/.local/share}/footical}"
           mkdir -p "$state_directory"
 
-          export DATABASE_URL="''${DATABASE_URL:-sqlite://$state_directory/footical.db}"
+          export DATABASE_URL="''${DATABASE_URL:-sqlite://$state_directory/application.db}"
 
           credentials_directory="$(mktemp -d)"
           trap 'rm -rf "$credentials_directory"' EXIT

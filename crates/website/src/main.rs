@@ -61,10 +61,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|source| anyhow::anyhow!("failed to connect to database: {source}"))?;
 
-    sqlx::raw_sql(include_str!("../schema.sql"))
-        .execute(&pool)
+    sqlx::migrate!("./migrations")
+        .run(&pool)
         .await
-        .map_err(|source| anyhow::anyhow!("failed to apply database schema: {source}"))?;
+        .map_err(|source| anyhow::anyhow!("failed to migrate database: {source}"))?;
 
     let scrape_state = footical_website::server::new_scrape_state();
 

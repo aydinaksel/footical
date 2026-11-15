@@ -36,6 +36,13 @@ from a template after hydration, which is what those pages used to do.
 Filtering belongs in SQL. A server function returns the rows a page shows, not a
 table for the browser to sift through.
 
+The schema lives in `crates/website/migrations`, embedded into the binary by
+`sqlx::migrate!` and applied at startup. Change it by adding a migration, never
+by editing one that has shipped: sqlx records each migration's checksum and
+refuses to start when an applied file no longer matches. `0001_baseline.sql` is
+the schema from before migrations, written with `IF NOT EXISTS` so it applied
+cleanly to the database already on argus.
+
 Mutations are `ServerAction`s. Keying a `Resource` on an action's `.version()`
 refetches it when the action completes, which is what the removed version
 counters did by hand.
@@ -59,9 +66,9 @@ just watch   # or: nix run .#watch
 just check   # fmt, leptosfmt, clippy (ssr and hydrate), tests
 ```
 
-`footical-watch` serves on `http://localhost:3003` against its own SQLite
-file at `~/.local/share/footical/footical.db`, created on first run. It stages
-the admin password (`development`) and the cookie secret in a temporary
+`footical-watch` serves on `http://localhost:3003` against its own SQLite file
+at `~/.local/share/footical/application.db`, created on first run. It stages the
+admin password (`development`) and the cookie secret in a temporary
 `$CREDENTIALS_DIRECTORY`, the way systemd's `LoadCredential=` does in
 production. Set `FOOTICAL_ADMIN_PASSWORD` or `FOOTICAL_COOKIE_SECRET` to
 override them.
