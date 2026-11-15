@@ -2,6 +2,12 @@
 const DEFAULT_LOG_FILTER: &str = "info,footical_website=debug,footical_scraper=debug";
 
 #[cfg(feature = "ssr")]
+const METRICS_ADDRESS_VARIABLE: &str = "METRICS_ADDRESS";
+
+#[cfg(feature = "ssr")]
+const SCRAPE_JOB_NAME: &str = "fixture_scrape";
+
+#[cfg(feature = "ssr")]
 const SITE_PACKAGE_DIRECTORY: &str = "pkg";
 
 #[cfg(feature = "ssr")]
@@ -23,9 +29,22 @@ async fn main() -> anyhow::Result<()> {
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
 
-    let log_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG_FILTER));
-    tracing_subscriber::fmt().with_env_filter(log_filter).init();
+    let _logging = match service_telemetry::logging::init(DEFAULT_LOG_FILTER) {
+        Ok(logging) => logging,
+        Err(error) => {
+            tracing::event!(
+                name: "logging.init.failure",
+                tracing::Level::ERROR,
+                error.message = %error,
+                "setting up logging failed: {{error.message}}",
+            );
+            return Err(error.into());
+        }
+    };
+
+    if let Some(metrics_address) = metrics_address()? {
+        service_telemetry::metrics::install(metrics_address).await?;
+    }
 
     let admin_credentials = footical_website::server::AdminCredentials::from_systemd()?;
 
@@ -109,6 +128,7 @@ async fn main() -> anyhow::Result<()> {
             footical_website::server::AppState,
             _,
         >(footical_website::app::shell))
+        .layer(service_telemetry::metrics::RequestMetricsLayer)
         .with_state(app_state);
 
     let app = Router::new()
@@ -137,6 +157,19 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|source| anyhow::anyhow!("server error: {source}"))?;
 
     Ok(())
+}
+
+#[cfg(feature = "ssr")]
+fn metrics_address() -> anyhow::Result<Option<std::net::SocketAddr>> {
+    match std::env::var(METRICS_ADDRESS_VARIABLE) {
+        Ok(value) => value.parse().map(Some).map_err(|source| {
+            anyhow::anyhow!("invalid {METRICS_ADDRESS_VARIABLE} {value}: {source}")
+        }),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(source) => Err(anyhow::anyhow!(
+            "reading {METRICS_ADDRESS_VARIABLE}: {source}"
+        )),
+    }
 }
 
 #[cfg(feature = "ssr")]
@@ -214,7 +247,13 @@ async fn run_scheduled_scrapes(
             scrape.trigger = "scheduled",
             "scheduled scrape started",
         );
+        let run = service_telemetry::metrics::JobRun::start(SCRAPE_JOB_NAME);
         let result = footical_scraper::run_scrape(&pool).await;
+        run.finish(if result.is_ok() {
+            service_telemetry::metrics::JobOutcome::Success
+        } else {
+            service_telemetry::metrics::JobOutcome::Failure
+        });
 
         let mut state = scrape_state.write().await;
         state.is_running = false;
