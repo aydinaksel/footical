@@ -77,22 +77,24 @@ The admin pages can trigger a scrape on demand to fill an empty database.
 
 ## Deploy
 
-Runs on `argus` as a flake input of `~/Projects/personal-infrastructure`,
-behind argus's host-proxy. Deploys are manual: push, then re-lock the pin and
-activate.
+Footical runs on `argus` as the `footical` flake input of
+`~/Projects/personal-infrastructure`. How that repository deploys is described
+in its own README. Pushing footical deploys nothing until the input is
+re-locked there:
 
 ```sh
 cd ~/Projects/personal-infrastructure
-nix flake update footical    # re-lock to main HEAD
-nix run . -- .#argus
+nix flake update footical
 ```
 
-Roll back a bad commit by pinning a good SHA instead of tracking `main`:
+Roll back by pinning a good commit instead:
 
 ```sh
 nix flake lock --override-input footical "github:aydinaksel/footical/<good-sha>"
-nix run . -- .#argus
 ```
+
+Do any step a change needs on the server, such as moving the database file,
+before the re-lock is deployed, or the service starts without it.
 
 The admin password and cookie secret live in argus's sops file and reach the
 service as the systemd credentials `admin-password` and `cookie-secret`. The
