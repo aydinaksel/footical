@@ -8,11 +8,11 @@ use crate::server::database::{database_pool, report_query_failure};
 const TEAM_LISTING_SELECT: &str = "SELECT
          team.team_id,
          team.name AS team_name,
-         division.name AS division_name,
+         competition.name AS division_name,
          league.name AS league_name
      FROM team
-     JOIN division ON division.division_id = team.division_id
-     JOIN league ON league.league_id = division.league_id";
+     JOIN competition ON competition.competition_id = team.competition_id
+     JOIN league ON league.league_id = competition.league_id";
 
 #[cfg(feature = "ssr")]
 const TEAM_SEARCH_LIMIT: i32 = 20;
@@ -65,6 +65,7 @@ pub async fn get_team_fixtures(team_id: i32) -> Result<Vec<Fixture>, ServerFnErr
          JOIN team home_team ON home_team.team_id = fixture.home_team_id
          JOIN team away_team ON away_team.team_id = fixture.away_team_id
          WHERE (fixture.home_team_id = ? OR fixture.away_team_id = ?)
+           AND fixture.status <> 'removed'
            AND fixture.scheduled_at >= datetime('now')
          ORDER BY fixture.scheduled_at",
     )
@@ -86,19 +87,20 @@ pub async fn get_todays_fixtures() -> Result<Vec<TodayFixture>, ServerFnError> {
              fixture.status,
              home_team.name AS home_team_name,
              away_team.name AS away_team_name,
-             division.name AS division_name,
-             league.name AS league_name,
+             competition.name AS division_name,
+             COALESCE(league.name, competition.name) AS league_name,
              venue.name AS venue_name,
              venue.address AS venue_address
          FROM fixture
          JOIN team home_team ON home_team.team_id = fixture.home_team_id
          JOIN team away_team ON away_team.team_id = fixture.away_team_id
-         JOIN division ON division.division_id = fixture.division_id
-         JOIN league ON league.league_id = division.league_id
-         LEFT JOIN venue ON venue.venue_id = league.venue_id
-         WHERE fixture.scheduled_at >= date('now', 'localtime')
+         JOIN competition ON competition.competition_id = fixture.competition_id
+         LEFT JOIN league ON league.league_id = competition.league_id
+         LEFT JOIN venue ON venue.venue_id = fixture.venue_id
+         WHERE fixture.status <> 'removed'
+           AND fixture.scheduled_at >= date('now', 'localtime')
            AND fixture.scheduled_at < date('now', 'localtime', '+1 day')
-         ORDER BY league.name, division.name, fixture.scheduled_at",
+         ORDER BY league_name, division_name, fixture.scheduled_at",
     )
     .fetch_all(&pool)
     .await

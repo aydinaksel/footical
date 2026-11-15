@@ -45,9 +45,7 @@ pub async fn generate_for_team(pool: &SqlitePool, team_id: i32) -> anyhow::Resul
          FROM fixture
          JOIN team home_team ON home_team.team_id = fixture.home_team_id
          JOIN team away_team ON away_team.team_id = fixture.away_team_id
-         JOIN division ON division.division_id = fixture.division_id
-         JOIN league ON league.league_id = division.league_id
-         LEFT JOIN venue ON venue.venue_id = league.venue_id
+         LEFT JOIN venue ON venue.venue_id = fixture.venue_id
          WHERE fixture.home_team_id = ?1 OR fixture.away_team_id = ?1
          ORDER BY fixture.scheduled_at",
     )
@@ -103,7 +101,7 @@ fn build_ical(
             .format("%Y%m%dT%H%M%S")
             .to_string();
         let ical_status = match fixture.status.as_str() {
-            "cancelled" | "postponed" => "CANCELLED",
+            "removed" | "postponed" => "CANCELLED",
             _ => "CONFIRMED",
         };
 
