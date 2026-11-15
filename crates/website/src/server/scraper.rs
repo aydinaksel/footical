@@ -3,12 +3,29 @@ use leptos::prelude::*;
 #[cfg(feature = "ssr")]
 use crate::server::ScrapeStateHandle;
 
+#[cfg(feature = "ssr")]
+const SCRAPE_JOB_NAME: &str = "fixture_scrape";
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScrapeStatus {
     pub is_running: bool,
     pub last_result_summary: Option<String>,
     pub last_error: Option<String>,
     pub last_run_at: Option<String>,
+}
+
+#[cfg(feature = "ssr")]
+pub async fn run_scrape_as_job(
+    pool: &sqlx::SqlitePool,
+) -> anyhow::Result<footical_scraper::ScrapeResult> {
+    let run = service_telemetry::metrics::JobRun::start(SCRAPE_JOB_NAME);
+    let result = footical_scraper::run_scrape(pool).await;
+    run.finish(if result.is_ok() {
+        service_telemetry::metrics::JobOutcome::Success
+    } else {
+        service_telemetry::metrics::JobOutcome::Failure
+    });
+    result
 }
 
 #[server]
@@ -31,7 +48,7 @@ pub async fn trigger_scrape() -> Result<(), ServerFnError> {
 
     let scrape_state_clone = scrape_state.clone();
     tokio::spawn(async move {
-        let result = footical_scraper::run_scrape(&pool).await;
+        let result = run_scrape_as_job(&pool).await;
 
         let mut state = scrape_state_clone.write().await;
         state.is_running = false;

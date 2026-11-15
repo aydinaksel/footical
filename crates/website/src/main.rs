@@ -5,9 +5,6 @@ const DEFAULT_LOG_FILTER: &str = "info,footical_website=debug,footical_scraper=d
 const METRICS_ADDRESS_VARIABLE: &str = "METRICS_ADDRESS";
 
 #[cfg(feature = "ssr")]
-const SCRAPE_JOB_NAME: &str = "fixture_scrape";
-
-#[cfg(feature = "ssr")]
 const SITE_PACKAGE_DIRECTORY: &str = "pkg";
 
 #[cfg(feature = "ssr")]
@@ -247,13 +244,7 @@ async fn run_scheduled_scrapes(
             scrape.trigger = "scheduled",
             "scheduled scrape started",
         );
-        let run = service_telemetry::metrics::JobRun::start(SCRAPE_JOB_NAME);
-        let result = footical_scraper::run_scrape(&pool).await;
-        run.finish(if result.is_ok() {
-            service_telemetry::metrics::JobOutcome::Success
-        } else {
-            service_telemetry::metrics::JobOutcome::Failure
-        });
+        let result = footical_website::server::scraper::run_scrape_as_job(&pool).await;
 
         let mut state = scrape_state.write().await;
         state.is_running = false;
