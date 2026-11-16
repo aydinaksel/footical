@@ -142,3 +142,9 @@ pub struct SavedSourcePage {
     pub players_parsed: usize,
     pub issues: Vec<String>,
 }
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct FulltimePageLink {
+    pub page_kind: String,
+    pub url: String,
+}

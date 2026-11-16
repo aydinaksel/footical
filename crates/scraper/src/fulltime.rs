@@ -232,6 +232,32 @@ pub async fn run(pool: &SqlitePool) -> anyhow::Result<FulltimeResult> {
 }
 
 #[derive(Debug, Clone)]
+pub struct ManualPageLink {
+    pub page_kind: String,
+    pub url: String,
+}
+
+pub fn manual_page_links() -> Vec<ManualPageLink> {
+    [
+        (
+            PageKind::Results,
+            DIVISION.list_url(PageKind::Results, FIRST_LIST_PAGE_NUMBER),
+        ),
+        (
+            PageKind::Fixtures,
+            DIVISION.list_url(PageKind::Fixtures, FIRST_LIST_PAGE_NUMBER),
+        ),
+        (PageKind::Team, DIVISION.team_url(TEAM_ID)),
+    ]
+    .into_iter()
+    .map(|(page_kind, url)| ManualPageLink {
+        page_kind: page_kind.to_string(),
+        url,
+    })
+    .collect()
+}
+
+#[derive(Debug, Clone)]
 pub struct PastedPage {
     pub page_kind: String,
     pub fixtures_parsed: usize,

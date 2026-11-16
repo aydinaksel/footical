@@ -4,16 +4,17 @@
 )]
 
 use design_system::formatting::format_file_size;
+use design_system::icons::{icon, LucideGlyph};
 use design_system::{
-    button_class, Alert, ButtonSize, ButtonTone, EmptyState, Field, LoadingState, PageHeader,
-    PageSection, Textarea, Tone,
+    button_class, button_icon_class, Alert, ButtonSize, ButtonTone, EmptyState, Field,
+    LoadingState, PageHeader, PageSection, Textarea, Tone,
 };
 use leptos::ev::DragEvent;
 use leptos::prelude::*;
 
 use crate::components::admin_only::AdminOnly;
-use crate::server::source_pages::{list_source_pages, SaveSourcePage};
-use crate::types::{SavedSourcePage, StoredSourcePage};
+use crate::server::source_pages::{list_fulltime_page_links, list_source_pages, SaveSourcePage};
+use crate::types::{FulltimePageLink, SavedSourcePage, StoredSourcePage};
 
 const PAGE_SOURCE_ROWS: u32 = 12;
 const FETCHED_AT_FORMAT: &str = "%-d %b %Y, %H:%M";
@@ -35,6 +36,7 @@ fn SourcePagesEditor() -> impl IntoView {
     let page_source = RwSignal::new(String::new());
     let drop_failure = RwSignal::new(None::<String>);
     let stored_pages = Resource::new(move || save_page.version().get(), |_| list_source_pages());
+    let page_links = Resource::new(|| (), |()| list_fulltime_page_links());
 
     Effect::new(move |_| {
         if matches!(save_page.value().get(), Some(Ok(_))) {
@@ -62,6 +64,24 @@ fn SourcePagesEditor() -> impl IntoView {
                     on:dragover=allow_file_drop
                     on:drop=move |event| load_dropped_file(&event, page_source, drop_failure)
                 >
+                    <Transition fallback=|| ()>
+                        {move || Suspend::new(async move {
+                            match page_links.await {
+                                Ok(links) => view! { <FulltimePageLinks links=links /> }.into_any(),
+                                Err(error) => {
+                                    view! {
+                                        <Alert
+                                            tone=Tone::Critical
+                                            title="Couldn't Load the Full-Time Links"
+                                        >
+                                            {server_error_message(error)}
+                                        </Alert>
+                                    }
+                                        .into_any()
+                                }
+                            }
+                        })}
+                    </Transition>
                     <Field
                         label="Page Source"
                         description=|| {
@@ -187,6 +207,33 @@ fn saved_summary(saved: &SavedSourcePage) -> String {
         return "Nothing was listed on it.".to_owned();
     }
     format!("Read {}.", counts.join(" and "))
+}
+
+#[component]
+fn FulltimePageLinks(links: Vec<FulltimePageLink>) -> impl IntoView {
+    let link_size = ButtonSize::Compact;
+    view! {
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-gray-600">"Open on FA Full-Time:"</span>
+            {links
+                .into_iter()
+                .map(|link| {
+                    view! {
+                        <a
+                            href=link.url
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class=button_class(ButtonTone::Secondary, link_size)
+                        >
+                            {page_kind_label(&link.page_kind)}
+                            {icon(LucideGlyph::ExternalLink, button_icon_class(link_size))}
+                        </a>
+                    }
+                })
+                .collect_view()}
+        </div>
+    }
+    .into_any()
 }
 
 #[component]

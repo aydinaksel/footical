@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 
-use crate::types::{SavedSourcePage, StoredSourcePage};
+use crate::types::{FulltimePageLink, SavedSourcePage, StoredSourcePage};
 
 #[cfg(feature = "ssr")]
 use crate::server::auth::require_admin;
@@ -26,6 +26,18 @@ pub async fn list_source_pages() -> Result<Vec<StoredSourcePage>, ServerFnError>
     .fetch_all(&pool)
     .await
     .map_err(|error| report_query_failure("select_source_pages", error))
+}
+
+#[server]
+pub async fn list_fulltime_page_links() -> Result<Vec<FulltimePageLink>, ServerFnError> {
+    require_admin().await?;
+    Ok(footical_scraper::manual_page_links()
+        .into_iter()
+        .map(|link| FulltimePageLink {
+            page_kind: link.page_kind,
+            url: link.url,
+        })
+        .collect())
 }
 
 #[server(input = Json)]
