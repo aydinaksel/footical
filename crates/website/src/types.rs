@@ -124,3 +124,21 @@ mod tests {
         assert_eq!(format_pence(-250), "-£2.50");
     }
 }
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+pub struct StoredSourcePage {
+    pub source_page_id: i64,
+    pub page_kind: String,
+    pub page_key: String,
+    pub size_bytes: i64,
+    pub fetched_at: chrono::NaiveDateTime,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct SavedSourcePage {
+    pub page_kind: String,
+    pub fixtures_parsed: usize,
+    pub players_parsed: usize,
+    pub issues: Vec<String>,
+}

@@ -63,6 +63,12 @@ fn ScraperDashboard() -> impl IntoView {
                                 "Squad"
                             </a>
                             <a
+                                href="/admin/pages"
+                                class="text-sm text-blue-600 hover:text-blue-700"
+                            >
+                                "Pages"
+                            </a>
+                            <a
                                 href="/admin/fines"
                                 class="text-sm text-blue-600 hover:text-blue-700"
                             >

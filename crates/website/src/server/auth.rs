@@ -5,6 +5,15 @@ use tracing::{event, Level};
 #[cfg(feature = "ssr")]
 const SESSION_COOKIE_NAME: &str = "footical_session";
 
+#[cfg(feature = "ssr")]
+pub async fn require_admin() -> Result<(), ServerFnError> {
+    if check_auth().await? {
+        Ok(())
+    } else {
+        Err(ServerFnError::new("not authorised"))
+    }
+}
+
 #[server]
 pub async fn login(password: String) -> Result<(), ServerFnError> {
     use footical_secrets::ExposeSecret;

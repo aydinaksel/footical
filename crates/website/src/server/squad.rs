@@ -4,16 +4,9 @@ use crate::types::{
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
-use crate::server::database::{database_pool, report_query_failure};
-
+use crate::server::auth::require_admin;
 #[cfg(feature = "ssr")]
-async fn require_admin() -> Result<(), ServerFnError> {
-    if crate::server::auth::check_auth().await? {
-        Ok(())
-    } else {
-        Err(ServerFnError::new("not authorised"))
-    }
-}
+use crate::server::database::{database_pool, report_query_failure};
 
 #[server]
 pub async fn get_player_balances() -> Result<Vec<PlayerBalance>, ServerFnError> {

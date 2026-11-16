@@ -8,6 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
+    design-system = {
+      url = "github:aydinaksel/design-system/v0.9.0";
+      flake = false;
+    };
   };
 
   outputs =
@@ -16,6 +20,7 @@
       nixpkgs,
       rust-overlay,
       crane,
+      design-system,
     }:
     let
       system = "x86_64-linux";
@@ -34,6 +39,20 @@
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
+      wasmBindgenCli = pkgs.buildWasmBindgenCli rec {
+        src = pkgs.fetchCrate {
+          pname = "wasm-bindgen-cli";
+          version = "0.2.130";
+          hash = "sha256-9Og1O/6/VC3sc5hBjoIWBErmLW2UHGMsTQO+6+m/dng=";
+        };
+
+        cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+          inherit src;
+          inherit (src) pname version;
+          hash = "sha256-j81sUf1m5yXU4FJfGj7GV+hdqVCV8mRmNb0QIsMCjqw=";
+        };
+      };
+
       chromiumExecutable = "${pkgs.chromium}/bin/chromium";
       xvfbExecutable = "${pkgs.xvfb}/bin/Xvfb";
 
@@ -48,14 +67,28 @@
         ];
       };
 
+      sourceWithDesignSystem =
+        footicalSource:
+        pkgs.runCommand "footical-source" { } ''
+          mkdir -p $out
+          cp -R --no-preserve=mode,ownership ${footicalSource} $out/footical
+          cp -R --no-preserve=mode,ownership ${design-system} $out/design-system
+        '';
+
       commonArgs = {
-        src = filteredSource;
+        src = sourceWithDesignSystem filteredSource;
+        postUnpack = ''
+          sourceRoot="$sourceRoot/footical"
+        '';
+        cargoLock = ./Cargo.lock;
+        cargoToml = ./Cargo.toml;
+        cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = ./Cargo.lock; };
         strictDeps = true;
 
         nativeBuildInputs = [
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
-          pkgs.wasm-bindgen-cli_0_2_121
+          wasmBindgenCli
           pkgs.binaryen
           pkgs.brotli
           pkgs.pkg-config
@@ -67,8 +100,9 @@
       };
 
       cargoArtifacts = craneLib.buildDepsOnly (
-        commonArgs
+        builtins.removeAttrs commonArgs [ "src" ]
         // {
+          dummySrc = sourceWithDesignSystem (craneLib.mkDummySrc { src = filteredSource; });
           pname = "footical-deps";
           version = "0.1.0";
         }
@@ -109,7 +143,7 @@
           rustToolchain
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
-          pkgs.wasm-bindgen-cli_0_2_121
+          wasmBindgenCli
           pkgs.binaryen
           pkgs.pkg-config
           pkgs.mold
@@ -154,7 +188,7 @@
           rustToolchain
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
-          pkgs.wasm-bindgen-cli_0_2_121
+          wasmBindgenCli
           pkgs.binaryen
           pkgs.pkg-config
           pkgs.mold

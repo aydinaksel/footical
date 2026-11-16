@@ -4,6 +4,7 @@ pub mod fixtures;
 pub mod home;
 pub mod login;
 pub mod player;
+pub mod source_pages_admin;
 pub mod squad_admin;
 pub mod team;
 pub mod today;

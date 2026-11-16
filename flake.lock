@@ -15,6 +15,23 @@
         "type": "github"
       }
     },
+    "design-system": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794517068,
+        "narHash": "sha256-hSxmO6BV8nyN4/dWNUCdYIYQOTmQ0BVkOqxT6vU0tsY=",
+        "owner": "aydinaksel",
+        "repo": "design-system",
+        "rev": "26786f66bb4595ce960fc582c181c46371d227d3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "aydinaksel",
+        "ref": "v0.9.0",
+        "repo": "design-system",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1780030872,
@@ -34,6 +51,7 @@
     "root": {
       "inputs": {
         "crane": "crane",
+        "design-system": "design-system",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }

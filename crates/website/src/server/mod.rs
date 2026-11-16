@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod data;
 pub mod scraper;
+pub mod source_pages;
 pub mod squad;
 
 #[cfg(feature = "ssr")]

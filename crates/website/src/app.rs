@@ -10,6 +10,7 @@ use crate::pages::fixtures::FixturesPage;
 use crate::pages::home::Home;
 use crate::pages::login::LoginPage;
 use crate::pages::player::PlayerPage;
+use crate::pages::source_pages_admin::SourcePagesAdminPage;
 use crate::pages::squad_admin::SquadAdminPage;
 use crate::pages::team::{TeamFinesPage, TeamFixturesPage, TeamTariffPage};
 use crate::pages::today::TodayPage;
@@ -56,6 +57,11 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/team/player/:id") view=PlayerPage ssr=SsrMode::Async />
                     <Route path=path!("/admin/fines") view=FinesAdminPage ssr=SsrMode::Async />
                     <Route path=path!("/admin/squad") view=SquadAdminPage ssr=SsrMode::Async />
+                    <Route
+                        path=path!("/admin/pages")
+                        view=SourcePagesAdminPage
+                        ssr=SsrMode::Async
+                    />
                     <Route path=path!("/admin/login") view=LoginPage />
                     <Route path=path!("/admin") view=AdminPage ssr=SsrMode::Async />
                 </Routes>
