@@ -1,11 +1,13 @@
 use anyhow::{anyhow, bail};
 use footical_fulltime::{
-    parse_fixtures_page, parse_results_page, parse_team_page, FixtureListPage, PageKind,
-    ParseIssue, Parsed, TeamPage,
+    assemble, is_county_competition, parse_fixtures_page, parse_results_page, parse_team_page,
+    team_name_key, FixtureListPage, PageKind, Pages, ParseIssue, Parsed, TeamPage,
 };
-use sqlx::SqlitePool;
+use footical_snapshot::{Competition, Snapshot};
+use sqlx::{SqliteConnection, SqlitePool};
 use tracing::{event, Level};
 
+use crate::snapshot_ingest::{ingest_snapshot, IngestCounts, SnapshotTarget};
 use crate::source_page;
 
 const FA_FULLTIME_SOURCE_ID: i32 = 2;
@@ -14,6 +16,8 @@ const ITEMS_PER_LIST_PAGE: usize = 100;
 const CLOUDFLARE_BLOCK_MARKER: &str = "Cloudflare Ray ID";
 
 const DIVISION: Division = Division {
+    league_id: "4051434",
+    league_name: "York Football League",
     season_id: "158072627",
     division_season: "780926466",
     fixture_group_key: "1_780926466",
@@ -22,6 +26,8 @@ const TEAM_ID: &str = "296920867";
 const FIRST_LIST_PAGE_NUMBER: u32 = 1;
 
 struct Division {
+    league_id: &'static str,
+    league_name: &'static str,
     season_id: &'static str,
     division_season: &'static str,
     fixture_group_key: &'static str,
@@ -47,6 +53,10 @@ impl Division {
              &previousSelectedClub=\
              &selectedTeam="
         )
+    }
+
+    fn league_source_key(&self) -> String {
+        format!("league:{}", self.league_id)
     }
 
     fn list_page_key(&self, page_number: u32) -> String {
@@ -92,6 +102,8 @@ pub struct PastedPage {
     pub page_kind: String,
     pub fixtures_parsed: usize,
     pub players_parsed: usize,
+    pub fixtures_published: usize,
+    pub fixtures_removed: u64,
     pub issues: Vec<String>,
 }
 
@@ -127,8 +139,105 @@ fn describe_issues(issues: &[ParseIssue]) -> Vec<String> {
     issues.iter().map(ToString::to_string).collect()
 }
 
+#[derive(Default)]
+struct StoredPages {
+    fixture_lists: Vec<FixtureListPage>,
+    teams: Vec<TeamPage>,
+}
+
+impl StoredPages {
+    fn add(&mut self, content: PastedContent) {
+        match content {
+            PastedContent::FixtureList(_, parsed) => self.fixture_lists.push(parsed.content),
+            PastedContent::Team(parsed) => self.teams.push(parsed.content),
+        }
+    }
+
+    fn lists_upcoming_fixtures(&self) -> bool {
+        self.fixture_lists
+            .iter()
+            .any(|list| list.page == PageKind::Fixtures)
+    }
+}
+
+async fn stored_pages(connection: &mut SqliteConnection) -> anyhow::Result<StoredPages> {
+    let bodies: Vec<String> = sqlx::query_scalar(
+        "SELECT body FROM source_page WHERE source_id = ? ORDER BY page_kind, page_key",
+    )
+    .bind(FA_FULLTIME_SOURCE_ID)
+    .fetch_all(connection)
+    .await?;
+    let mut pages = StoredPages::default();
+    for body in &bodies {
+        pages.add(identify_pasted_page(body)?);
+    }
+    Ok(pages)
+}
+
+async fn adopt_team_ids(
+    connection: &mut SqliteConnection,
+    snapshot: &Snapshot,
+) -> anyhow::Result<()> {
+    let identified_teams = snapshot
+        .teams
+        .iter()
+        .filter(|team| team.key != team_name_key(&team.name));
+    for team in identified_teams {
+        sqlx::query(
+            "UPDATE team SET source_key = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE source_id = ? AND source_key = ?
+               AND NOT EXISTS (
+                   SELECT 1 FROM team AS identified
+                   WHERE identified.source_id = ? AND identified.source_key = ?
+               )",
+        )
+        .bind(&team.key)
+        .bind(FA_FULLTIME_SOURCE_ID)
+        .bind(team_name_key(&team.name))
+        .bind(FA_FULLTIME_SOURCE_ID)
+        .bind(&team.key)
+        .execute(&mut *connection)
+        .await?;
+    }
+    Ok(())
+}
+
+fn belongs_to_league(competition: &Competition) -> bool {
+    !is_county_competition(competition)
+}
+
+struct Published {
+    counts: IngestCounts,
+    issues: Vec<ParseIssue>,
+}
+
+async fn publish_stored_pages(connection: &mut SqliteConnection) -> anyhow::Result<Published> {
+    let pages = stored_pages(connection).await?;
+    let assembled = assemble(Pages {
+        fixture_lists: &pages.fixture_lists,
+        teams: &pages.teams,
+        ..Pages::default()
+    });
+    adopt_team_ids(connection, &assembled.content).await?;
+    let league_source_key = DIVISION.league_source_key();
+    let target = SnapshotTarget {
+        source_id: FA_FULLTIME_SOURCE_ID,
+        league_source_key: &league_source_key,
+        league_name: DIVISION.league_name,
+        belongs_to_league,
+        removes_unlisted_fixtures_after: pages
+            .lists_upcoming_fixtures()
+            .then(|| chrono::Local::now().naive_local()),
+    };
+    let counts = ingest_snapshot(connection, &target, &assembled.content).await?;
+    Ok(Published {
+        counts,
+        issues: assembled.issues,
+    })
+}
+
 pub async fn store_pasted_page(pool: &SqlitePool, html: &str) -> anyhow::Result<PastedPage> {
-    let (page_kind, page_key, pasted_page) = match identify_pasted_page(html)? {
+    let (page_kind, page_key, mut pasted_page) = match identify_pasted_page(html)? {
         PastedContent::FixtureList(page_kind, parsed) => (
             page_kind,
             DIVISION.list_page_key(FIRST_LIST_PAGE_NUMBER),
@@ -136,6 +245,8 @@ pub async fn store_pasted_page(pool: &SqlitePool, html: &str) -> anyhow::Result<
                 page_kind: page_kind.to_string(),
                 fixtures_parsed: parsed.content.rows.len(),
                 players_parsed: 0,
+                fixtures_published: 0,
+                fixtures_removed: 0,
                 issues: describe_issues(&parsed.issues),
             },
         ),
@@ -146,25 +257,37 @@ pub async fn store_pasted_page(pool: &SqlitePool, html: &str) -> anyhow::Result<
                 page_kind: PageKind::Team.to_string(),
                 fixtures_parsed: 0,
                 players_parsed: parsed.content.player_names.len(),
+                fixtures_published: 0,
+                fixtures_removed: 0,
                 issues: describe_issues(&parsed.issues),
             },
         ),
     };
+    let mut transaction = pool.begin().await?;
     source_page::store(
-        pool,
+        &mut transaction,
         FA_FULLTIME_SOURCE_ID,
         &page_kind.to_string(),
         &page_key,
         html,
     )
     .await?;
+    let published = publish_stored_pages(&mut transaction).await?;
+    transaction.commit().await?;
+    pasted_page.fixtures_published = published.counts.fixtures_written;
+    pasted_page.fixtures_removed = published.counts.fixtures_removed;
+    pasted_page
+        .issues
+        .extend(describe_issues(&published.issues));
     event!(
         name: "scrape.fulltime.page.pasted",
         Level::INFO,
         scrape.page.kind = %page_kind,
         scrape.page.key = page_key,
         scrape.page.issues = pasted_page.issues.len(),
-        "stored a pasted {{scrape.page.kind}} page under {{scrape.page.key}} with {{scrape.page.issues}} parse issues",
+        scrape.fixtures.count = pasted_page.fixtures_published,
+        scrape.fixtures.removed = pasted_page.fixtures_removed,
+        "stored a pasted {{scrape.page.kind}} page under {{scrape.page.key}} with {{scrape.page.issues}} parse issues, publishing {{scrape.fixtures.count}} fixtures and removing {{scrape.fixtures.removed}}",
     );
     Ok(pasted_page)
 }
@@ -230,6 +353,56 @@ mod tests {
                 ("team".to_owned(), "296920867".to_owned()),
             ]
         );
+    }
+
+    async fn wigginton_team_ids(pool: &SqlitePool) -> Vec<(i64, String)> {
+        sqlx::query_as(
+            "SELECT team_id, source_key FROM team
+             WHERE source_id = 2 AND name LIKE 'Wigginton%'
+             ORDER BY team_id",
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn saving_the_pages_publishes_their_fixtures_under_the_york_league() {
+        let pool = migrated_pool().await;
+        let mut last_saved = None;
+        for page in [SAVED_TEAM_PAGE, SAVED_FIXTURES_PAGE, SAVED_RESULTS_PAGE] {
+            last_saved = Some(store_pasted_page(&pool, page).await.unwrap());
+        }
+        let published: i64 = sqlx::query_scalar("SELECT count(*) FROM fixture WHERE source_id = 2")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert!(published > 0);
+        assert_eq!(
+            usize::try_from(published).unwrap(),
+            last_saved.unwrap().fixtures_published
+        );
+        let league_names: Vec<String> = sqlx::query_scalar(
+            "SELECT league.name FROM team
+             JOIN competition ON competition.competition_id = team.competition_id
+             JOIN league ON league.league_id = competition.league_id
+             WHERE team.source_key = 'team:296920867'",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(league_names, vec!["York Football League"]);
+    }
+
+    #[tokio::test]
+    async fn a_team_saved_by_name_keeps_its_id_once_its_team_page_arrives() {
+        let pool = migrated_pool().await;
+        store_pasted_page(&pool, SAVED_RESULTS_PAGE).await.unwrap();
+        let named = wigginton_team_ids(&pool).await;
+        store_pasted_page(&pool, SAVED_TEAM_PAGE).await.unwrap();
+        let identified = wigginton_team_ids(&pool).await;
+        assert_eq!(named.len(), 1);
+        assert_eq!(identified, vec![(named[0].0, "team:296920867".to_owned())]);
     }
 
     #[tokio::test]

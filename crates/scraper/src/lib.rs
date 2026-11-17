@@ -3,6 +3,7 @@ mod fulltime;
 pub mod ical;
 mod ingest;
 mod parse;
+mod snapshot_ingest;
 mod source_page;
 
 use std::collections::HashSet;

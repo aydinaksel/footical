@@ -9,10 +9,10 @@ const TEAM_LISTING_SELECT: &str = "SELECT
          team.team_id,
          team.name AS team_name,
          competition.name AS division_name,
-         league.name AS league_name
+         COALESCE(league.name, competition.name) AS league_name
      FROM team
      JOIN competition ON competition.competition_id = team.competition_id
-     JOIN league ON league.league_id = competition.league_id";
+     LEFT JOIN league ON league.league_id = competition.league_id";
 
 #[cfg(feature = "ssr")]
 const TEAM_SEARCH_LIMIT: i32 = 20;

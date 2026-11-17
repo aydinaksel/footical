@@ -51,6 +51,8 @@ pub async fn save_source_page(html: String) -> Result<SavedSourcePage, ServerFnE
         page_kind: pasted.page_kind,
         fixtures_parsed: pasted.fixtures_parsed,
         players_parsed: pasted.players_parsed,
+        fixtures_published: pasted.fixtures_published,
+        fixtures_removed: pasted.fixtures_removed,
         issues: pasted.issues,
     })
 }

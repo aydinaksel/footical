@@ -13,6 +13,15 @@ use crate::venue::VenuePage;
 
 const LEAGUE_GROUP_PREFIX: &str = "1_";
 const CUP_GROUP_PREFIX: &str = "2_";
+const COUNTY_COMPETITION_KEY_PREFIX: &str = "county-competition:";
+const TEAM_NAME_KEY_PREFIX: &str = "team-name:";
+pub fn team_name_key(name: &str) -> String {
+    format!("{TEAM_NAME_KEY_PREFIX}{}", normalised_name(name))
+}
+
+pub fn is_county_competition(competition: &Competition) -> bool {
+    competition.key.starts_with(COUNTY_COMPETITION_KEY_PREFIX)
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Pages<'pages> {
@@ -161,7 +170,7 @@ impl SnapshotBuilder {
         let normalised = normalised_name(&row.competition_name);
         let competition = if row.is_county_cup {
             Competition {
-                key: format!("county-competition:{normalised}"),
+                key: format!("{COUNTY_COMPETITION_KEY_PREFIX}{normalised}"),
                 name: row.competition_name.clone(),
                 kind: CompetitionKind::Cup,
             }
@@ -193,7 +202,7 @@ impl SnapshotBuilder {
             .team_keys_by_name
             .get(&normalised)
             .cloned()
-            .unwrap_or_else(|| format!("team-name:{normalised}"));
+            .unwrap_or_else(|| team_name_key(name));
         self.insert_team(&key, name);
         key
     }

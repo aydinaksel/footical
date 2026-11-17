@@ -1,8 +1,8 @@
 use sha2::{Digest, Sha256};
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub async fn store(
-    pool: &SqlitePool,
+    connection: &mut SqliteConnection,
     source_id: i32,
     page_kind: &str,
     page_key: &str,
@@ -22,7 +22,7 @@ pub async fn store(
     .bind(page_key)
     .bind(content_hash)
     .bind(body)
-    .execute(pool)
+    .execute(connection)
     .await?;
     Ok(())
 }
@@ -33,7 +33,7 @@ mod tests {
 
     const FA_FULLTIME_SOURCE_ID: i32 = 2;
 
-    async fn migrated_pool() -> SqlitePool {
+    async fn migrated_pool() -> sqlx::SqlitePool {
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(1)
             .connect("sqlite::memory:")
@@ -49,8 +49,9 @@ mod tests {
     #[tokio::test]
     async fn storing_a_page_again_replaces_its_body() {
         let pool = migrated_pool().await;
+        let mut connection = pool.acquire().await.unwrap();
         store(
-            &pool,
+            &mut connection,
             FA_FULLTIME_SOURCE_ID,
             "table",
             "1_780926466",
@@ -59,7 +60,7 @@ mod tests {
         .await
         .unwrap();
         store(
-            &pool,
+            &mut connection,
             FA_FULLTIME_SOURCE_ID,
             "table",
             "1_780926466",
@@ -69,7 +70,7 @@ mod tests {
         .unwrap();
         let rows: Vec<(String, String)> =
             sqlx::query_as("SELECT body, content_hash FROM source_page")
-                .fetch_all(&pool)
+                .fetch_all(&mut *connection)
                 .await
                 .unwrap();
         assert_eq!(

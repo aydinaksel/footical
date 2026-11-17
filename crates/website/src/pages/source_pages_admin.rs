@@ -56,7 +56,7 @@ fn SourcePagesEditor() -> impl IntoView {
         <main class="mx-auto max-w-3xl space-y-8 px-4 py-8">
             <PageHeader
                 title="FA Full-Time Pages"
-                description="Pages saved from FA Full-Time by hand, kept in place of the ones Cloudflare refuses."
+                description="Pages saved from FA Full-Time by hand. Saving one updates the York fixtures everyone sees."
             />
             <PageSection title="Add a Page">
                 <div
@@ -195,6 +195,20 @@ fn page_kind_label(page_kind: &str) -> String {
         .unwrap_or_default()
 }
 
+fn publication_summary(saved: &SavedSourcePage) -> String {
+    let published = format!(
+        "The site now shows {} York fixtures.",
+        saved.fixtures_published
+    );
+    if saved.fixtures_removed == 0 {
+        return published;
+    }
+    format!(
+        "{published} {} upcoming fixtures no longer listed on Full-Time were marked removed.",
+        saved.fixtures_removed
+    )
+}
+
 fn saved_summary(saved: &SavedSourcePage) -> String {
     let mut counts = Vec::new();
     if saved.fixtures_parsed > 0 {
@@ -257,6 +271,7 @@ fn SaveOutcome(
 fn SavedPageAlert(saved: SavedSourcePage) -> impl IntoView {
     let title = format!("Saved the {} Page", page_kind_label(&saved.page_kind));
     let summary = saved_summary(&saved);
+    let publication = publication_summary(&saved);
     let tone = if saved.issues.is_empty() {
         Tone::Positive
     } else {
@@ -273,6 +288,7 @@ fn SavedPageAlert(saved: SavedSourcePage) -> impl IntoView {
     view! {
         <Alert tone=tone title=title>
             <p>{summary}</p>
+            <p>{publication}</p>
             {issues}
         </Alert>
     }

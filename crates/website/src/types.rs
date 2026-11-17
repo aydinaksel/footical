@@ -140,6 +140,8 @@ pub struct SavedSourcePage {
     pub page_kind: String,
     pub fixtures_parsed: usize,
     pub players_parsed: usize,
+    pub fixtures_published: usize,
+    pub fixtures_removed: u64,
     pub issues: Vec<String>,
 }
 

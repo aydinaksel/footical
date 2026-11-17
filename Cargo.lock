@@ -970,6 +970,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "footical-fulltime",
+ "footical-snapshot",
  "regex",
  "reqwest 0.12.28",
  "scraper",
