@@ -1,4 +1,3 @@
-mod browser;
 mod fetch;
 mod fulltime;
 pub mod ical;
@@ -11,9 +10,7 @@ use std::collections::HashSet;
 use sqlx::SqlitePool;
 use tracing::{event, Level};
 
-pub use fulltime::{
-    manual_page_links, store_pasted_page, FulltimeResult, FulltimeStage, ManualPageLink, PastedPage,
-};
+pub use fulltime::{manual_page_links, store_pasted_page, ManualPageLink, PastedPage};
 
 const BASE_URL: &str = "https://footballmundial.com";
 
@@ -25,35 +22,7 @@ pub struct ScrapeResult {
     pub teams_upserted: usize,
     pub fixtures_upserted: usize,
     pub stale_fixtures_deleted: u64,
-    pub fulltime: FulltimeStage,
     pub duration_seconds: f64,
-}
-
-async fn run_fulltime_stage(pool: &SqlitePool) -> FulltimeStage {
-    match fulltime::run(pool).await {
-        Ok(result) => {
-            event!(
-                name: "scrape.fulltime.completed",
-                Level::INFO,
-                scrape.pages.count = result.pages_stored,
-                scrape.fixtures.count = result.fixtures_parsed,
-                scrape.parse_issues.count = result.parse_issues,
-                "FA Full-Time stored {{scrape.pages.count}} pages holding {{scrape.fixtures.count}} fixtures with {{scrape.parse_issues.count}} parse issues",
-            );
-            FulltimeStage::Fetched(result)
-        }
-        Err(error) => {
-            event!(
-                name: "scrape.fulltime.failed",
-                Level::ERROR,
-                error.message = format!("{error:#}"),
-                "FA Full-Time fetch failed: {{error.message}}",
-            );
-            FulltimeStage::Failed {
-                error_message: format!("{error:#}"),
-            }
-        }
-    }
 }
 
 pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
@@ -262,8 +231,6 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         "upserted {{scrape.teams.count}} teams and {{scrape.fixtures.count}} fixtures",
     );
 
-    let fulltime = run_fulltime_stage(pool).await;
-
     let duration_seconds = started_at.elapsed().as_secs_f64();
 
     event!(
@@ -285,7 +252,6 @@ pub async fn run_scrape(pool: &SqlitePool) -> anyhow::Result<ScrapeResult> {
         teams_upserted,
         fixtures_upserted,
         stale_fixtures_deleted,
-        fulltime,
         duration_seconds,
     })
 }

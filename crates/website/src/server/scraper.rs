@@ -91,13 +91,12 @@ pub async fn get_scrape_status() -> Result<ScrapeStatus, ServerFnError> {
 
     let last_result_summary = state.last_result.as_ref().map(|result| {
         format!(
-            "{} venues, {} leagues, {} divisions, {} fixtures in {:.1}s. {}",
+            "{} venues, {} leagues, {} divisions, {} fixtures in {:.1}s",
             result.venues_upserted,
             result.leagues_upserted,
             result.divisions_upserted,
             result.fixtures_upserted,
             result.duration_seconds,
-            result.fulltime,
         )
     });
 
