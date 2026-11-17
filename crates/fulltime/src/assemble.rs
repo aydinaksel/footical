@@ -15,6 +15,12 @@ const LEAGUE_GROUP_PREFIX: &str = "1_";
 const CUP_GROUP_PREFIX: &str = "2_";
 const COUNTY_COMPETITION_KEY_PREFIX: &str = "county-competition:";
 const TEAM_NAME_KEY_PREFIX: &str = "team-name:";
+const TEAM_ID_KEY_PREFIX: &str = "team:";
+
+pub fn team_id_key(team_id: &str) -> String {
+    format!("{TEAM_ID_KEY_PREFIX}{team_id}")
+}
+
 pub fn team_name_key(name: &str) -> String {
     format!("{TEAM_NAME_KEY_PREFIX}{}", normalised_name(name))
 }
@@ -189,7 +195,7 @@ impl SnapshotBuilder {
     }
 
     fn register_team_id(&mut self, team_id: &str, name: &str) -> String {
-        let key = format!("team:{team_id}");
+        let key = team_id_key(team_id);
         self.team_keys_by_name
             .insert(normalised_name(name), key.clone());
         self.insert_team(&key, name);

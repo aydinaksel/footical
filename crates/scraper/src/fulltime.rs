@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail};
 use footical_fulltime::{
     assemble, is_county_competition, parse_fixtures_page, parse_results_page, parse_team_page,
-    team_name_key, FixtureListPage, PageKind, Pages, ParseIssue, Parsed, TeamPage,
+    team_id_key, team_name_key, FixtureListPage, PageKind, Pages, ParseIssue, Parsed, TeamPage,
 };
 use footical_snapshot::{Competition, Snapshot};
 use sqlx::{SqliteConnection, SqlitePool};
@@ -69,6 +69,10 @@ impl Division {
             self.division_season
         )
     }
+}
+
+pub fn squad_team_key() -> String {
+    team_id_key(TEAM_ID)
 }
 
 #[derive(Debug, Clone)]

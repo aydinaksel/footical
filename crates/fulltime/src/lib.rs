@@ -8,7 +8,7 @@ mod text;
 mod venue;
 
 #[doc(inline)]
-pub use assemble::{assemble, is_county_competition, team_name_key, Pages};
+pub use assemble::{assemble, is_county_competition, team_id_key, team_name_key, Pages};
 #[doc(inline)]
 pub use error::{IssueField, PageError, PageKind, ParseIssue, Parsed};
 #[doc(inline)]

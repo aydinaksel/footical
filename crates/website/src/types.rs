@@ -63,12 +63,13 @@ pub struct PlayerBalance {
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
 pub struct SquadFixture {
-    pub squad_fixture_id: i32,
+    pub fixture_id: i32,
     pub competition: String,
     pub kicks_off_at: chrono::NaiveDateTime,
     pub is_home: bool,
     pub opponent: String,
     pub venue: Option<String>,
+    pub is_postponed: bool,
 }
 
 pub fn format_pence(pence: i64) -> String {

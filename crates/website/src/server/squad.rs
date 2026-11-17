@@ -40,11 +40,31 @@ pub async fn get_player_balances() -> Result<Vec<PlayerBalance>, ServerFnError> 
 pub async fn get_squad_fixtures() -> Result<Vec<SquadFixture>, ServerFnError> {
     let pool = database_pool()?;
     sqlx::query_as::<_, SquadFixture>(
-        "SELECT squad_fixture_id, competition, kicks_off_at, is_home, opponent, venue
-         FROM squad_fixture
-         WHERE kicks_off_at >= datetime('now', '-3 hours')
-         ORDER BY kicks_off_at",
+        "SELECT fixture.fixture_id,
+                competition.name AS competition,
+                fixture.scheduled_at AS kicks_off_at,
+                fixture.home_team_id = squad_team.team_id AS is_home,
+                opponent.name AS opponent,
+                venue.name AS venue,
+                fixture.status = 'postponed' AS is_postponed
+         FROM team AS squad_team
+         JOIN source ON source.source_id = squad_team.source_id
+         JOIN fixture
+           ON squad_team.team_id IN (fixture.home_team_id, fixture.away_team_id)
+         JOIN team AS opponent
+           ON opponent.team_id = CASE
+               WHEN fixture.home_team_id = squad_team.team_id THEN fixture.away_team_id
+               ELSE fixture.home_team_id
+           END
+         JOIN competition ON competition.competition_id = fixture.competition_id
+         LEFT JOIN venue ON venue.venue_id = fixture.venue_id
+         WHERE source.code = 'fa-fulltime'
+           AND squad_team.source_key = ?
+           AND fixture.status <> 'removed'
+           AND fixture.scheduled_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime', '-3 hours')
+         ORDER BY fixture.scheduled_at",
     )
+    .bind(footical_scraper::squad_team_key())
     .fetch_all(&pool)
     .await
     .map_err(|error| report_query_failure("select_squad_fixtures", error))

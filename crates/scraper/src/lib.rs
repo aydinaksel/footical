@@ -11,7 +11,9 @@ use std::collections::HashSet;
 use sqlx::SqlitePool;
 use tracing::{event, Level};
 
-pub use fulltime::{manual_page_links, store_pasted_page, ManualPageLink, PastedPage};
+pub use fulltime::{
+    manual_page_links, squad_team_key, store_pasted_page, ManualPageLink, PastedPage,
+};
 
 const BASE_URL: &str = "https://footballmundial.com";
 

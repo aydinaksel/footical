@@ -147,6 +147,7 @@ fn fixture_list(fixtures: Vec<SquadFixture>) -> AnyView {
                         let is_home = fixture.is_home;
                         let competition = fixture.competition;
                         let opponent = fixture.opponent;
+                        let is_postponed = fixture.is_postponed;
 
                         view! {
                             <li class="px-6 py-4 flex items-start justify-between gap-4">
@@ -160,6 +161,14 @@ fn fixture_list(fixtures: Vec<SquadFixture>) -> AnyView {
                                         <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                             {competition}
                                         </span>
+                                        {is_postponed
+                                            .then(|| {
+                                                view! {
+                                                    <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                                        "POSTPONED"
+                                                    </span>
+                                                }
+                                            })}
                                     </div>
                                     <p class="font-medium text-gray-800 truncate">{opponent}</p>
                                     <p class="text-xs text-gray-400 truncate mt-0.5">{venue}</p>
