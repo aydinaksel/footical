@@ -9,7 +9,7 @@
     };
     crane.url = "github:ipetkov/crane";
     design-system = {
-      url = "github:aydinaksel/design-system/v0.9.0";
+      url = "github:aydinaksel/design-system/v0.11.0";
       flake = false;
     };
   };
