@@ -1,2 +1,2 @@
 @import "tailwindcss";
-@import "../../../../design-system/crates/design-system/style/design-system.css";
+@import "./design-system.generated.css";

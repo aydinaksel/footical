@@ -726,6 +726,7 @@ dependencies = [
 [[package]]
 name = "design-system"
 version = "0.11.0"
+source = "git+https://github.com/aydinaksel/design-system?tag=v0.11.0#9b43fe2e38cbf11b7a85d98e3e827eb179a3cfb8"
 dependencies = [
  "chrono",
  "codee",
@@ -3984,6 +3985,7 @@ dependencies = [
 [[package]]
 name = "table-query"
 version = "0.1.0"
+source = "git+https://github.com/aydinaksel/design-system?tag=v0.11.0#9b43fe2e38cbf11b7a85d98e3e827eb179a3cfb8"
 dependencies = [
  "serde",
 ]

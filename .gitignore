@@ -1,3 +1,5 @@
 .env
 target/
 .direnv/
+crates/website/style/design-system.generated.css
+.cargo/config.toml

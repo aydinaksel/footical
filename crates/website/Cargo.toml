@@ -21,7 +21,7 @@ leptos_toaster = { version = "0.3", features = ["builtin_toast"] }
 leptos-use = { version = "0.19", default-features = false, features = ["use_clipboard", "use_cookie", "storage", "on_click_outside", "signal_debounced", "use_timeout_fn"] }
 codee = { version = "0.3", features = ["json_serde"] }
 tracing = "0.1"
-design-system = { path = "../../../design-system/crates/design-system" }
+design-system = { git = "https://github.com/aydinaksel/design-system", tag = "v0.11.0" }
 anyhow = { version = "1", optional = true }
 
 # SSR

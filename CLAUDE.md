@@ -56,6 +56,27 @@ response: the 200 status is already committed by the time it sets the location
 header. The `AdminOnly` component still guards client-side navigation, and each
 admin server function checks the session itself.
 
+## Design System
+
+The website takes `design-system` from GitHub at the tag in
+`crates/website/Cargo.toml`, and Cargo.lock pins the commit. Tailwind needs
+design-system's CSS and Rust source too, so `footical-design-system-css` (in
+the dev shell, and run by `footical-watch` and the Nix build) writes
+`crates/website/style/design-system.generated.css` with an import of the
+checkout Cargo resolved. Rerun it after changing the dependency.
+
+To develop design-system alongside footical, add this to `.cargo/config.toml`,
+then run `cargo update -p design-system` and `footical-design-system-css`:
+
+```toml
+[patch."https://github.com/aydinaksel/design-system"]
+design-system = { path = "../design-system/crates/design-system" }
+```
+
+The patch rewrites Cargo.lock, so do not commit either. Once design-system is
+tagged, bump the tag in `crates/website/Cargo.toml`, run
+`cargo update -p design-system`, and remove the patch.
+
 ## Develop
 
 `direnv allow` puts the toolchain, `cargo-leptos`, `leptosfmt`, `just` and

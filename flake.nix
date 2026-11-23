@@ -8,10 +8,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
-    design-system = {
-      url = "github:aydinaksel/design-system/v0.11.0";
-      flake = false;
-    };
   };
 
   outputs =
@@ -20,7 +16,6 @@
       nixpkgs,
       rust-overlay,
       crane,
-      design-system,
     }:
     let
       system = "x86_64-linux";
@@ -53,6 +48,8 @@
         };
       };
 
+      designSystemCss = import ./nix/design-system-css.nix { inherit pkgs; };
+
       unfilteredRoot = ./.;
 
       filteredSource = pkgs.lib.fileset.toSource {
@@ -64,19 +61,8 @@
         ];
       };
 
-      sourceWithDesignSystem =
-        footicalSource:
-        pkgs.runCommand "footical-source" { } ''
-          mkdir -p $out
-          cp -R --no-preserve=mode,ownership ${footicalSource} $out/footical
-          cp -R --no-preserve=mode,ownership ${design-system} $out/design-system
-        '';
-
       commonArgs = {
-        src = sourceWithDesignSystem filteredSource;
-        postUnpack = ''
-          sourceRoot="$sourceRoot/footical"
-        '';
+        src = filteredSource;
         cargoLock = ./Cargo.lock;
         cargoToml = ./Cargo.toml;
         cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = ./Cargo.lock; };
@@ -97,9 +83,8 @@
       };
 
       cargoArtifacts = craneLib.buildDepsOnly (
-        builtins.removeAttrs commonArgs [ "src" ]
+        commonArgs
         // {
-          dummySrc = sourceWithDesignSystem (craneLib.mkDummySrc { src = filteredSource; });
           pname = "footical-deps";
           version = "0.1.0";
         }
@@ -115,6 +100,7 @@
           doNotPostBuildInstallCargoBinaries = true;
 
           buildPhaseCargoCommand = ''
+            ${designSystemCss}/bin/footical-design-system-css --offline --locked
             cargo leptos build --release --precompress
           '';
 
@@ -133,6 +119,7 @@
 
         runtimeInputs = [
           rustToolchain
+          designSystemCss
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
           wasmBindgenCli
@@ -157,6 +144,7 @@
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 
+          footical-design-system-css --locked
           cargo leptos watch "$@"
         '';
       };
@@ -175,6 +163,7 @@
       devShells.${system}.default = pkgs.mkShell {
         nativeBuildInputs = [
           rustToolchain
+          designSystemCss
           pkgs.cargo-leptos
           pkgs.tailwindcss_4
           wasmBindgenCli
