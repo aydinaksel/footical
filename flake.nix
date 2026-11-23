@@ -186,9 +186,6 @@
 
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
-        RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
-        SCCACHE_SERVER_PORT = toString (4200 + pkgs.lib.toInt (pkgs.lib.versions.minor pkgs.sccache.version));
-        SCCACHE_CACHE_SIZE = "50G";
       };
     };
 }
